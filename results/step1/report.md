@@ -170,7 +170,7 @@ Detection = share of cheat trials with at least one flag. Advantage = cheat minu
 
 ## Run health
 
-- `liquidbounce/grim`: finished=True, joins=132, unattributed flags=20, errors=0
-- `liquidbounce/none`: finished=True, joins=132, unattributed flags=0, errors=0
-- `meteor/grim`: finished=True, joins=108, unattributed flags=25, errors=0
-- `meteor/none`: finished=True, joins=108, unattributed flags=0, errors=0
+- `liquidbounce/grim`: finished=True, shards=1, joins=132, unattributed flags=20, errors=0, client – ticks/s, server 20.0 ticks/s
+- `liquidbounce/none`: finished=True, shards=1, joins=132, unattributed flags=0, errors=0, client – ticks/s, server 20.0 ticks/s
+- `meteor/grim`: finished=True, shards=1, joins=108, unattributed flags=25, errors=0, client – ticks/s, server 20.0 ticks/s
+- `meteor/none`: finished=True, shards=1, joins=108, unattributed flags=0, errors=0, client – ticks/s, server 20.0 ticks/s

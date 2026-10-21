@@ -1,0 +1,56 @@
+{
+  "name": "acbench-step1",
+  "run_id": "step2",
+  "minecraft": "26.3",
+  "repetitions": 3,
+  "grace_ticks": 40,
+  "scoring": {
+    "detection": 0.5,
+    "false_positives": 0.35,
+    "mitigation": 0.15
+  },
+  "clients": [
+    "liquidbounce",
+    "meteor"
+  ],
+  "anticheats": [
+    "none",
+    "grim"
+  ],
+  "paper": "paper-26.3-211.jar",
+  "target_player": "BenchTarget",
+  "started": "2026-10-21 18:00:36",
+  "jars": {
+    "client:meteor": [
+      "meteor-client-26.3.jar"
+    ],
+    "anticheat:none": [],
+    "anticheat:grim": [
+      "grimac-bukkit-2.3.74-52787c6.jar"
+    ],
+    "client:liquidbounce": [
+      "liquidbounce-f2e592106c.jar",
+      "fabric-language-kotlin-1.14.1+kotlin.2.4.20.jar",
+      "fabric-api-0.160.5+26.3.jar"
+    ]
+  },
+  "status": {
+    "meteor/none": {
+      "restarts": 9,
+      "finished": true
+    },
+    "meteor/grim": {
+      "restarts": 0,
+      "finished": true
+    },
+    "liquidbounce/none": {
+      "restarts": 0,
+      "finished": true
+    },
+    "liquidbounce/grim": {
+      "restarts": 0,
+      "finished": true
+    }
+  },
+  "finished": "2026-10-21 21:12:44"
+}

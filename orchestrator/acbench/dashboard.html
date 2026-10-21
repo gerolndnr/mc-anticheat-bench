@@ -459,7 +459,7 @@ function health(d) {
         <td>${i.done ? "ja" : "nein"}</td><td class="n">${esc(i.shards || 1)}</td>
         <td class="n ${bad}">${tps(q.client_tps)}${q.client_tps_min != null ? ` <span class="muted">(min ${tps(q.client_tps_min)})</span>` : ""}</td>
         <td class="n ${bad}">${tps(q.server_tps)}</td><td class="n">${q.server_mspt == null ? "–" : de(q.server_mspt, 1)}</td>
-        <td class="n">${esc(i.joins ?? "–")}</td><td class="n">${esc(i.unattributed_flags)}</td>
+        <td class="n">${esc(i.joins ?? "–")}</td><td class="n">${esc(i.unattributed_flags)}${i.legal_play?.invalid ? ' <span class="pill bad">legales Spiel blockiert</span>' : ""}</td>
         <td class="note">${esc((i.errors || []).slice(0, 3).map(e => e.message || JSON.stringify(e)).join("; ") || "keine")}</td></tr>`;
     }).join("")}</table></div>`;
 }
@@ -473,6 +473,7 @@ function renderDetail() {
     <h2>${esc(m.run_id || state.selected)} <span class="badge ${esc(d.state)}">${esc(stateLabel[d.state] || d.state)}</span></h2>
     <div class="muted">${[m.name, m.minecraft && "Minecraft " + m.minecraft, m.repetitions && m.repetitions + " Wiederholungen pro Test", m.started && "Start " + m.started, m.finished && d.state !== "running" && "Ende " + m.finished].filter(Boolean).map(esc).join(" · ")}
       ${d.has_report ? ` · <a href="/runs/${encodeURIComponent(state.selected)}/report" target="_blank">Report</a>` : ""}</div>
+    ${Object.entries(d.runs || {}).filter(([k, i]) => i.legal_play?.invalid).map(([k, i]) => `<div class="card warn"><b>Ungültig: ${esc(k.replace("/", " gegen "))}.</b> In ${i.legal_play.impaired} von ${i.legal_play.checked} legalen Tests kam der Bot mit AntiCheat nicht einmal auf die Hälfte dessen, was er ohne AntiCheat schafft (z. B. ${esc(i.legal_play.examples.slice(0, 2).join(", "))}). Der Bot wurde also ausgebremst oder eingefroren; die Zahlen dieser Kombination messen den Aufbau, nicht die Cheats.</div>`).join("")}
     ${Object.values(d.runs || {}).some(i => i.quality?.overloaded) ? `<div class="card warn"><b>Achtung, Messung möglicherweise verfälscht:</b> Mindestens ein Teil dieses Runs lief auf einem überlasteten Rechner (weniger als 18,5 Ticks pro Sekunde). Details unter „Technische Prüfung“. Am besten mit weniger Workern wiederholen.</div>` : ""}
     ${intro()}
     ${livePanel(d)}

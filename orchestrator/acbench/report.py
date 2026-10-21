@@ -78,6 +78,10 @@ def markdown(result: dict) -> str:
         q = info.get("quality") or {}
         load = (f", client {_num(q.get('client_tps'), 1)} ticks/s, server {_num(q.get('server_tps'), 1)} ticks/s"
                 + (" **OVERLOADED – repeat with fewer workers**" if q.get("overloaded") else "")) if q else ""
+        legal = info.get("legal_play") or {}
+        if legal.get("invalid"):
+            load += (f" **INVALID: legal play impaired in {legal['impaired']}/{legal['checked']} baseline trials "
+                     f"(bot held back or frozen), results of this pair do not measure the cheats**")
         out.append(f"- `{key}`: finished={info['done']}, shards={info.get('shards') or 1}, joins={info.get('joins', '?')}, "
                    f"unattributed flags={info['unattributed_flags']}, errors={len(info['errors'])}{load}")
     out.append("")

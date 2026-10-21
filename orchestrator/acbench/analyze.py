@@ -164,6 +164,36 @@ def measurement_quality(rows: list[dict]) -> dict:
     return quality
 
 
+# A legal (baseline) trial with an anticheat that reaches less than this share of the same strategy's result
+# without anticheat means the bot was held back, e.g. frozen by setbacks. Such a run measures the setup, not cheats.
+IMPAIRED_SHARE = 0.5
+MAX_IMPAIRED_RATE = 0.25
+
+
+def impaired_legal_play(rows: list[dict], client: str, anticheat: str) -> dict:
+    """Compares every legal trial under the anticheat with the same strategy in the reference run."""
+    reference: dict[tuple, list[float]] = defaultdict(list)
+    for r in rows:
+        if r["client"] == client and r["anticheat"] == REFERENCE_AC and r["phase"] == "baseline" and r["completed"]:
+            reference[(r["scenario"], r["variant"])].append(r["value"])
+    checked = impaired = 0
+    examples = []
+    for r in rows:
+        if r["client"] != client or r["anticheat"] != anticheat or r["phase"] != "baseline" or not r["completed"]:
+            continue
+        ref = _mean(reference.get((r["scenario"], r["variant"]), []))
+        if ref is None or r["value"] is None or abs(ref) < 0.5:
+            continue  # nothing to compare against, or a metric that is legitimately ~0 (e.g. hits through walls)
+        checked += 1
+        worse = r["value"] < IMPAIRED_SHARE * ref if r["advantage"] == "higher" else r["value"] > ref / IMPAIRED_SHARE
+        if worse:
+            impaired += 1
+            examples.append(r["trial"])
+    rate = impaired / checked if checked else None
+    return {"checked": checked, "impaired": impaired, "rate": rate, "examples": examples[:5],
+            "invalid": bool(rate is not None and rate > MAX_IMPAIRED_RATE)}
+
+
 def _mean(values: list[float]) -> float | None:
     values = [v for v in values if v is not None]
     return statistics.fmean(values) if values else None
@@ -394,6 +424,10 @@ def compute_run(run_dir: Path) -> tuple[dict, list[dict]]:
                 "shard_quality": {u.name: measurement_quality([r for r in pair_rows if r["unit"] == u.name])
                                   for u in units} if units != [ac_dir] else {},
             }
+    for key, info in infos.items():
+        client, anticheat = key.split("/", 1)
+        if anticheat != REFERENCE_AC:
+            info["legal_play"] = impaired_legal_play(rows, client, anticheat)
     result = aggregate(rows, meta.get("scoring", DEFAULT_SCORING))
     result["meta"] = meta
     result["runs"] = infos

@@ -5211,7 +5211,24 @@
         ]
       },
       "done": true,
-      "errors": []
+      "errors": [],
+      "shards": 0,
+      "quality": {
+        "client_tps": null,
+        "client_tps_min": null,
+        "server_tps": 20.0,
+        "server_mspt": 0.8732723942307692,
+        "server_mspt_max": 2.19162611764706,
+        "overloaded": false
+      },
+      "shard_quality": {},
+      "legal_play": {
+        "checked": 24,
+        "impaired": 0,
+        "rate": 0.0,
+        "examples": [],
+        "invalid": false
+      }
     },
     "liquidbounce/none": {
       "unattributed_flags": 0,
@@ -5242,7 +5259,17 @@
         ]
       },
       "done": true,
-      "errors": []
+      "errors": [],
+      "shards": 0,
+      "quality": {
+        "client_tps": null,
+        "client_tps_min": null,
+        "server_tps": 20.0,
+        "server_mspt": 0.8828418039215692,
+        "server_mspt_max": 2.1785337549019594,
+        "overloaded": false
+      },
+      "shard_quality": {}
     },
     "meteor/grim": {
       "unattributed_flags": 25,
@@ -5278,7 +5305,24 @@
         ]
       },
       "done": true,
-      "errors": []
+      "errors": [],
+      "shards": 0,
+      "quality": {
+        "client_tps": null,
+        "client_tps_min": null,
+        "server_tps": 20.0,
+        "server_mspt": 0.8142987961165044,
+        "server_mspt_max": 2.6343130163934423,
+        "overloaded": false
+      },
+      "shard_quality": {},
+      "legal_play": {
+        "checked": 24,
+        "impaired": 0,
+        "rate": 0.0,
+        "examples": [],
+        "invalid": false
+      }
     },
     "meteor/none": {
       "unattributed_flags": 0,
@@ -5309,7 +5353,17 @@
         ]
       },
       "done": true,
-      "errors": []
+      "errors": [],
+      "shards": 0,
+      "quality": {
+        "client_tps": null,
+        "client_tps_min": null,
+        "server_tps": 19.99607920015683,
+        "server_mspt": 0.8083623235294118,
+        "server_mspt_max": 2.317240967213113,
+        "overloaded": false
+      },
+      "shard_quality": {}
     }
   }
 }
