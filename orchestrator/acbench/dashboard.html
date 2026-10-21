@@ -1,0 +1,646 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>acbench Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@400;600;700&display=swap">
+<style>
+/* Layout: sticky status bar, run list as a left rail, run detail as the main column (one column on phones). */
+:root {
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --bg: #f6f6f4; --panel: #ffffff; --fg: #1c1c1e; --muted: #6c6c72; --line: #e3e3df; --soft: #f0f0ec;
+  --accent: #3b5bdb; --good: #1f8a4c; --mid: #b7791f; --bad: #c0392b; --live: #e03131;
+  --bar: #3b5bdb; --bar-bg: #e7e9f3;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #121214; --panel: #1b1b1f; --fg: #ececee; --muted: #9b9ba3; --line: #2c2c32; --soft: #24242a;
+  --accent: #7c95ff; --good: #4cc283; --mid: #e0a84a; --bad: #ef6b5e; --live: #ff6b6b;
+  --bar: #7c95ff; --bar-bg: #2a2e45; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #121214; --panel: #1b1b1f; --fg: #ececee; --muted: #9b9ba3; --line: #2c2c32; --soft: #24242a;
+  --accent: #7c95ff; --good: #4cc283; --mid: #e0a84a; --bad: #ef6b5e; --live: #ff6b6b;
+  --bar: #7c95ff; --bar-bg: #2a2e45; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--fg); font: 14.5px/1.5 var(--font-ui); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--panel); }
+header { display: flex; flex-wrap: wrap; min-width: 0; align-items: center; gap: 4px 12px; padding-block: 14px; padding-left: max(20px, env(safe-area-inset-left, 0px)); padding-right: max(20px, env(safe-area-inset-right, 0px)); border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2; }
+header h1 { font-size: 17px; margin: 0; font-weight: 650; }
+header .sub { color: var(--muted); font-size: 13px; }
+header .spacer { flex: 1; }
+.conn { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; }
+.dot.live { background: var(--live); animation: pulse 1.4s infinite; }
+.dot.ok { background: var(--good); }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--live) 60%, transparent); } 70% { box-shadow: 0 0 0 7px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+.layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); min-height: calc(100vh - 54px); }
+aside { border-right: 1px solid var(--line); background: var(--panel); padding: 12px; padding-left: max(12px, env(safe-area-inset-left, 0px)); overflow-y: auto; max-height: calc(100vh - 54px); position: sticky; top: calc(54px + env(safe-area-inset-top, 0px)); }
+aside h2 { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 6px 6px 10px; }
+.run { display: block; width: 100%; text-align: left; border: 1px solid transparent; background: none; color: inherit; font: inherit; padding: 10px 10px; border-radius: 8px; cursor: pointer; margin-bottom: 4px; }
+.run:hover { background: var(--soft); }
+.run.sel { background: var(--soft); border-color: var(--line); }
+.run .top { display: flex; align-items: center; gap: 8px; font-weight: 600; }
+.run .meta { color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+.chip { font-size: 11.5px; background: var(--soft); border: 1px solid var(--line); border-radius: 6px; padding: 0 6px; white-space: nowrap; }
+.badge { font-size: 11px; font-weight: 600; border-radius: 999px; padding: 0 8px; border: 1px solid var(--line); color: var(--muted); }
+.badge.running { color: var(--live); border-color: color-mix(in srgb, var(--live) 40%, transparent); }
+.badge.finished { color: var(--good); border-color: color-mix(in srgb, var(--good) 40%, transparent); }
+.badge.failed, .badge.aborted { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, transparent); }
+main { padding-block: 22px 60px; padding-left: 24px; padding-right: max(24px, env(safe-area-inset-right, 0px)); min-width: 0; }
+.score, .kv dd, td.n, .feed .t, .chip { font-family: var(--font-data); }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { .dot.live { animation: none; } .progress > div { transition: none; } }
+main h2 { font-size: 20px; margin: 0 0 2px; }
+main h3 { font-size: 15px; margin: 28px 0 10px; }
+.muted { color: var(--muted); }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.score { font-size: 30px; font-weight: 650; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.kv { display: grid; grid-template-columns: auto auto; gap: 1px 12px; margin-top: 6px; font-size: 13px; }
+.kv dt { color: var(--muted); } .kv dd { margin: 0; text-align: right; font-variant-numeric: tabular-nums; }
+.good { color: var(--good); } .mid { color: var(--mid); } .bad { color: var(--bad); }
+.progress { height: 8px; background: var(--bar-bg); border-radius: 99px; overflow: hidden; margin: 8px 0 4px; }
+.progress > div { height: 100%; background: var(--bar); border-radius: 99px; transition: width .6s; }
+.livegrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; margin-top: 10px; }
+.feed { max-height: 280px; overflow-y: auto; font-size: 13px; }
+.feed div { display: flex; gap: 8px; padding: 3px 0; border-bottom: 1px dashed var(--line); }
+.feed div:last-child { border-bottom: none; }
+.feed .t { color: var(--muted); font-variant-numeric: tabular-nums; min-width: 62px; }
+.wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--line); text-align: left; white-space: nowrap; vertical-align: middle; }
+th { color: var(--muted); font-weight: 600; background: var(--panel); position: sticky; top: 0; }
+tr:last-child td { border-bottom: none; }
+td.n { text-align: right; font-variant-numeric: tabular-nums; }
+td.note { white-space: normal; min-width: 200px; color: var(--muted); font-size: 12.5px; }
+.minibar { display: inline-block; width: 46px; height: 6px; background: var(--bar-bg); border-radius: 99px; vertical-align: middle; margin-right: 6px; overflow: hidden; }
+.minibar > i { display: block; height: 100%; background: var(--bar); }
+.tabs { display: flex; gap: 6px; margin: 4px 0 10px; flex-wrap: wrap; }
+.tab { border: 1px solid var(--line); background: var(--panel); color: inherit; font: inherit; font-size: 13px; padding: 4px 12px; border-radius: 99px; cursor: pointer; }
+.tab.on { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.intro { margin-top: 14px; }
+.card.warn { margin-top: 14px; border-color: color-mix(in srgb, var(--bad) 50%, transparent); background: color-mix(in srgb, var(--bad) 8%, var(--panel)); }
+.intro summary { cursor: pointer; font-weight: 600; }
+.introgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px 20px; margin-top: 10px; font-size: 13.5px; }
+.introgrid > div { min-width: 0; }
+.introgrid.intro4 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.pill { display: inline-block; border-radius: 999px; padding: 1px 9px; font-size: 12px; font-weight: 600; border: 1px solid var(--line); white-space: nowrap; }
+.pill.good { color: var(--good); border-color: color-mix(in srgb, var(--good) 45%, transparent); background: color-mix(in srgb, var(--good) 10%, transparent); }
+.pill.mid { color: var(--mid); border-color: color-mix(in srgb, var(--mid) 45%, transparent); background: color-mix(in srgb, var(--mid) 10%, transparent); }
+.pill.bad { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 45%, transparent); background: color-mix(in srgb, var(--bad) 10%, transparent); }
+.pill.muted { color: var(--muted); }
+.mhelp { color: var(--muted); font-size: 12.5px; line-height: 1.4; margin: 2px 0 0; }
+p.mhelp { margin: 0 0 10px; max-width: 75ch; }
+.summary { display: flex; flex-direction: column; gap: 10px; }
+.scoreline { display: flex; align-items: baseline; gap: 12px; }
+.scoreline .mhelp { max-width: 30ch; }
+.metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 16px; }
+.metric { min-width: 0; }
+.mlabel { font-size: 12.5px; font-weight: 600; }
+.mval { font-family: var(--font-data); font-size: 18px; font-weight: 600; }
+.catlines { font-size: 13px; display: grid; gap: 2px; }
+td.cheat, td.result { white-space: normal; min-width: 190px; }
+td.adv { white-space: normal; min-width: 120px; }
+tr.catrow td { background: var(--soft); font-size: 11.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.cards:has(.summary) { grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+.views { display: flex; gap: 6px; margin-left: 8px; }
+.layout.compare { grid-template-columns: minmax(0, 1fr); }
+.layout.compare aside { display: none; }
+.picker { display: grid; gap: 10px; }
+.pickrow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pickrow .mlabel { min-width: 90px; }
+.tab[aria-pressed="false"] { color: var(--muted); }
+.overview td { white-space: normal; vertical-align: top; min-width: 190px; }
+.overview .score { font-size: 24px; }
+.linkbtn { border: none; background: none; color: var(--accent); font: inherit; font-size: 12.5px; padding: 0; cursor: pointer; text-decoration: underline; }
+a { color: var(--accent); }
+.empty { padding: 40px; text-align: center; color: var(--muted); }
+.err { color: var(--bad); font-size: 13px; }
+@media (max-width: 860px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  aside { position: static; max-height: 260px; border-right: none; border-bottom: 1px solid var(--line); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  main { padding-block: 16px 40px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  header { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .livegrid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<header>
+  <h1>acbench</h1><span class="sub">AntiCheat-Benchmark</span>
+  <nav class="views" aria-label="Ansicht">
+    <button class="tab on" id="view-compare" data-view="compare">Vergleich</button>
+    <button class="tab" id="view-run" data-view="run">Einzelne Runs</button>
+  </nav>
+  <span class="spacer"></span>
+  <span class="conn"><span class="dot" id="conn-dot"></span><span id="conn-text">verbinde …</span></span>
+</header>
+<div class="layout" id="layout">
+  <aside><h2>Runs</h2><div id="runs"></div></aside>
+  <main id="main"><div class="empty">Lade Runs …</div></main>
+</div>
+<!--SNAPSHOT-->
+<script>
+// Set by `./bench export`: a frozen copy of the API answers, so the page works without the server.
+const SNAPSHOT = window.ACBENCH_SNAPSHOT || null;
+const state = { runs: [], selected: null, detail: null, client: null, lastOk: 0, view: "compare", cache: {}, pick: null };
+// Opening with #run-<id> shows that run; anything else starts on the comparison.
+if (location.hash.startsWith("#run-")) { state.view = "run"; state.selected = decodeURIComponent(location.hash.slice(5)); }
+const $ = (sel) => document.querySelector(sel);
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const pct = (v) => v == null ? "–" : `${Math.round(v * 100)} %`;
+const num = (v, d = 2) => v == null ? "–" : Number(v).toFixed(d);
+const cls = (v, goodHigh = true) => v == null ? "" : ((goodHigh ? v : 1 - v) >= .75 ? "good" : (goodHigh ? v : 1 - v) >= .4 ? "mid" : "bad");
+const clock = (ms) => ms ? new Date(ms).toLocaleTimeString("de-DE") : "";
+const dur = (s) => s == null ? "–" : s < 90 ? `${Math.round(s)} s` : `${Math.round(s / 60)} min`;
+const stateLabel = { running: "läuft", finished: "fertig", failed: "fehlgeschlagen", aborted: "abgebrochen", incomplete: "unvollständig" };
+
+async function getJSON(url) {
+  if (SNAPSHOT) {
+    if (url === "/api/runs") return SNAPSHOT.runs;
+    const id = decodeURIComponent(url.split("/").pop());
+    if (SNAPSHOT.details[id]) return SNAPSHOT.details[id];
+    throw new Error("Run nicht in der Momentaufnahme");
+  }
+  const res = await fetch(url, { cache: "no-store" });
+  if (!res.ok) throw new Error(`${res.status} ${url}`);
+  return res.json();
+}
+
+function setConn(ok, text) {
+  $("#conn-dot").className = "dot " + (ok ? (!SNAPSHOT && state.runs.some(r => r.state === "running") ? "live" : "ok") : "");
+  $("#conn-text").textContent = text;
+}
+
+async function loadRuns() {
+  try {
+    state.runs = await getJSON("/api/runs");
+    state.lastOk = Date.now();
+    const running = state.runs.filter(r => r.state === "running").length;
+    if (SNAPSHOT) setConn(true, `Momentaufnahme vom ${new Date(SNAPSHOT.created_ms).toLocaleString("de-DE")}`);
+    else setConn(true, running ? `${running} Run live` : "verbunden");
+    if (!state.selected && state.runs.length) state.selected = state.runs[0].run_id;
+    renderRuns();
+    if (state.view === "compare") await loadCompare();
+    else if (!state.detail) await loadDetail();
+  } catch (e) {
+    setConn(false, "Server nicht erreichbar");
+  }
+}
+
+function renderRuns() {
+  const box = $("#runs");
+  if (!state.runs.length) { box.innerHTML = `<div class="muted" style="padding:8px">Noch keine Runs in results/.</div>`; return; }
+  box.innerHTML = state.runs.map(r => {
+    const chips = (r.summaries || []).map(s => `<span class="chip">${esc(s.anticheat)} gegen ${esc(s.client)}: <b>${num(s.score, 0)}</b></span>`).join("");
+    return `<button class="run ${r.run_id === state.selected ? "sel" : ""}" data-id="${esc(r.run_id)}">
+      <div class="top">${r.state === "running" ? '<span class="dot live"></span>' : ""}${esc(r.run_id)}
+        <span class="badge ${esc(r.state)}">${esc(stateLabel[r.state] || r.state)}</span></div>
+      <div class="meta">${esc(r.started || "")}${r.minecraft ? " · MC " + esc(r.minecraft) : ""}</div>
+      <div class="meta">${esc((r.clients || []).join(", "))} × ${esc((r.anticheats || []).join(", "))}</div>
+      ${chips ? `<div class="chips">${chips}</div>` : ""}
+    </button>`;
+  }).join("");
+  box.querySelectorAll(".run").forEach(b => b.onclick = () => select(b.dataset.id));
+}
+
+function setView(view) {
+  state.view = view;
+  $("#layout").classList.toggle("compare", view === "compare");
+  document.querySelectorAll(".views .tab").forEach(b => b.classList.toggle("on", b.dataset.view === view));
+  try { history.replaceState(null, "", view === "compare" ? "#vergleich" : `#run-${encodeURIComponent(state.selected || "")}`); } catch (e) { /* sandboxed */ }
+  if (view === "compare") loadCompare(); else if (state.selected) select(state.selected);
+}
+
+async function select(id) {
+  if (state.view !== "run") {
+    state.view = "run";
+    $("#layout").classList.remove("compare");
+    document.querySelectorAll(".views .tab").forEach(b => b.classList.toggle("on", b.dataset.view === "run"));
+  }
+  try { history.replaceState(null, "", `#run-${encodeURIComponent(id)}`); } catch (e) { /* sandboxed */ }
+  if (state.selected !== id || !state.detail) { state.selected = id; state.client = null; state.detail = null; $("#main").innerHTML = `<div class="empty">Lade ${esc(id)} …</div>`; }
+  renderRuns();
+  await loadDetail();
+}
+
+async function loadDetail() {
+  if (!state.selected) return;
+  try {
+    state.detail = await getJSON(`/api/runs/${encodeURIComponent(state.selected)}`);
+    renderDetail();
+  } catch (e) {
+    $("#main").innerHTML = `<div class="err">Konnte Run nicht laden: ${esc(e.message)}</div>`;
+  }
+}
+
+// Plain-language names for scenario metrics; unit and direction turn raw numbers into readable advantages.
+const METRICS = {
+  max_height_gain: { label: "Höhe", unit: "Blöcke" },
+  forward_speed: { label: "Tempo", unit: "Blöcke/s" },
+  fall_damage: { label: "Fallschaden", unit: "HP" },
+  hits: { label: "Treffer", unit: "" },
+  hits_per_second: { label: "Treffer pro Sekunde", unit: "" },
+  crits: { label: "kritische Treffer", unit: "" },
+  knockback_taken: { label: "Rückstoß", unit: "Blöcke" },
+  swings_per_second: { label: "Schläge pro Sekunde", unit: "" },
+};
+const CHEATS = {
+  fly: "Fliegen statt nur springen", speed: "Schneller laufen als erlaubt", step: "Ganze Blöcke ohne Springen hochlaufen",
+  nofall: "Kein Fallschaden", timer: "Spieluhr beschleunigt: mehr Bewegung pro Sekunde", noslow: "Beim Essen nicht langsamer werden",
+  jesus: "Über Wasser laufen", spider: "Wände hochklettern", killaura: "Greift Gegner automatisch an, auch hinter dem Spieler",
+  reach: "Größere Schlagreichweite", velocity: "Kein Rückstoß, wenn man getroffen wird", criticals: "Erzwingt kritische Treffer (mehr Schaden)",
+  autoclicker: "Klickt automatisch schnell",
+};
+const CATEGORY = { movement: "Bewegung", combat: "Kampf" };
+// Names of the legal strategies a cheat is compared against (baselines in the scenario files).
+const STRATEGY = {
+  default: "gleiche Eingaben ohne Cheat", sprint: "Sprinten", sprintjump: "Sprint-Springen", walk: "Laufen", jump: "Springen",
+  stand: "Stehenbleiben", jumpreset: "Springen beim Treffer (Jump-Reset)", ground: "Schlagen vom Boden", click: "Klicken ohne Umdrehen",
+  cps7: "7 Klicks pro Sekunde", cps12: "12 Klicks pro Sekunde",
+};
+const strategyName = (s) => s ? (STRATEGY[s.replace(/^baseline-/, "")] || s.replace(/^baseline-/, "")) : "";
+const de = (v, digits = 1) => v == null ? "–" : Number(v).toLocaleString("de-DE", { maximumFractionDigits: digits });
+
+function advantageText(v) {
+  if (v.raw_advantage == null) return "–";
+  const m = METRICS[v.metric] || { label: v.metric, unit: "" };
+  const amount = `${de(Math.abs(v.raw_advantage))}${m.unit ? " " + m.unit : ""}`;
+  if (v.raw_advantage <= 0) return `kein Vorteil`;
+  return v.advantage_direction === "lower" ? `${amount} weniger ${m.label}` : `+${amount} ${m.label}`;
+}
+
+function detectionWord(rate) {
+  if (rate == null) return "–";
+  return rate >= 0.99 ? "immer bemerkt" : rate >= 0.5 ? "meist bemerkt" : rate > 0 ? "selten bemerkt" : "nie bemerkt";
+}
+
+function verdict(v) {
+  if (!v.valid) return { cls: "muted", text: "nicht gewertet" };
+  const left = v.retained_advantage;
+  const effect = left == null ? "" : left <= 0.25 ? "Vorteil weg" : left <= 0.75 ? "Vorteil verringert" : "Vorteil bleibt";
+  const det = v.detection_rate ?? 0;
+  const tone = det >= 0.5 && left != null && left <= 0.25 ? "good" : det === 0 && (left == null || left > 0.75) ? "bad" : "mid";
+  return { cls: tone, text: [detectionWord(v.detection_rate), effect].filter(Boolean).join(" · ") };
+}
+
+function leftText(left) {
+  if (left == null) return "";
+  if (left < -0.1) return "0 % übrig, Cheater sogar schlechter als ohne Cheat";
+  return `${Math.round(Math.max(0, Math.min(1, left)) * 100)} % vom Vorteil übrig`;
+}
+
+function intro() {
+  let open = true;
+  try { open = localStorage.getItem("acbench.intro") !== "closed"; } catch (e) { /* storage blocked */ }
+  return `<details class="intro card" id="intro" ${open ? "open" : ""}>
+    <summary>So liest du die Werte</summary>
+    <div class="introgrid intro4">
+      <div><b>Wie getestet wird.</b> Ein Bot spielt jede Situation mehrmals gleich durch: einmal ohne Cheat, einmal mit Cheat.
+        Der Server misst, was dabei herauskommt, z. B. wie hoch der Spieler kommt oder wie viel Fallschaden er nimmt.
+        Ein Lauf <i>ohne</i> AntiCheat zeigt, wie viel ein Cheat bringt; der Lauf <i>mit</i> AntiCheat zeigt, ob es den Cheat bemerkt und ob der Vorteil verschwindet.</div>
+      <div><b>Zwei Fragen pro Cheat.</b> <i>Bemerkt?</i> Hat das AntiCheat mindestens einmal Alarm geschlagen (ein „Flag“)?
+        <i>Abgewehrt?</i> Ist der Spieler mit Cheat trotzdem besser als ohne? Ein AntiCheat kann einen Cheat bemerken, ohne ihn zu stoppen, und umgekehrt.
+        Verglichen wird immer mit der <i>besten erlaubten Spielweise</i>: Ist Sprint-Springen schneller als Sprinten, zählt nur, was ein Cheat darüber hinaus bringt.</div>
+      <div><b>Bemerkt vs. Admin-Alarm.</b> „Bemerkt“ zählt jedes einzelne Flag. Mit seinen Standard-Einstellungen meldet ein AntiCheat aber erst nach vielen Verstößen etwas an den Admin.
+        „Admin-Alarm“ zeigt, ob das schon innerhalb eines Tests von etwa 5 Sekunden passiert wäre. Im echten Spiel cheatet jemand meist länger, dieser Wert ist also streng.</div>
+      <div><b>Urteile in der Tabelle.</b>
+        <span class="pill good">bemerkt · Vorteil weg</span> gut,
+        <span class="pill mid">nur eins von beidem</span> lückenhaft,
+        <span class="pill bad">nie bemerkt · Vorteil bleibt</span> der Cheat funktioniert.
+        <span class="pill muted">nicht gewertet</span> heißt: Der Cheat brachte schon ohne AntiCheat keinen Vorteil, der Test sagt dazu nichts.</div>
+    </div>
+  </details>`;
+}
+
+function summaryCards(d) {
+  if (!d.summaries?.length) return `<div class="muted">Noch keine Auswertung. Dafür braucht es einen Lauf mit AntiCheat und den Vergleichslauf ohne AntiCheat („none“).</div>`;
+  const w = d.meta?.scoring || {};
+  return `<div class="cards">${d.summaries.map(s => {
+    const a = s.all || {};
+    const cats = Object.keys(s).filter(k => k !== "all" && s[k] && typeof s[k] === "object" && !Array.isArray(s[k]));
+    return `<div class="card summary">
+      <div class="sumhead"><b>${esc(s.anticheat)}</b> gegen <b>${esc(s.client)}</b></div>
+      <div class="scoreline"><span class="score">${num(s.score, 0)}</span><span class="mhelp">Gesamtnote von 0 bis 100: ${Math.round((w.detection ?? .5) * 100)} % Bemerkt, ${Math.round((w.false_positives ?? .35) * 100)} % keine Fehlalarme, ${Math.round((w.mitigation ?? .15) * 100)} % Abgewehrt</span></div>
+      <div class="metrics">
+        <div class="metric"><div class="mlabel">Cheats bemerkt</div><div class="mval ${cls(a.detection_rate)}">${pct(a.detection_rate)}</div>
+          <div class="mhelp">Wie oft das AntiCheat mindestens einmal geflaggt hat, gemittelt über alle Cheat-Arten (jeweils mit der stärksten Einstellung).</div></div>
+        <div class="metric"><div class="mlabel">Admin-Alarm</div><div class="mval ${cls(a.default_detection_rate)}">${pct(a.default_detection_rate)}</div>
+          <div class="mhelp">Wie oft das AntiCheat mit seinen Standard-Einstellungen schon innerhalb eines Tests (~5 s) einen Alarm an den Admin geschickt hätte.</div></div>
+        <div class="metric"><div class="mlabel">Vorteil abgewehrt</div><div class="mval ${cls(a.mitigation)}">${pct(a.mitigation)}</div>
+          <div class="mhelp">Wie viel vom Vorsprung durch den Cheat das AntiCheat im Schnitt zunichtemacht.</div></div>
+        <div class="metric"><div class="mlabel">Fehlalarme</div><div class="mval ${cls(a.false_positive_rate, false)}">${pct(a.false_positive_rate)}</div>
+          <div class="mhelp">Anteil der Tests <i>ohne</i> Cheat, in denen trotzdem Alarm kam. Niedriger ist besser.</div></div>
+        <div class="metric"><div class="mlabel">Reaktionszeit</div><div class="mval">${a.median_time_to_flag_s == null ? "–" : de(a.median_time_to_flag_s) + " s"}</div>
+          <div class="mhelp">Typische Zeit vom Einschalten des Cheats bis zum ersten Alarm.</div></div>
+      </div>
+      ${cats.length ? `<div class="catlines">${cats.map(c => `<div><b>${esc(CATEGORY[c] || c)}:</b> ${pct(s[c].detection_rate)} bemerkt, ${pct(s[c].default_detection_rate)} Admin-Alarm, ${pct(s[c].mitigation)} abgewehrt</div>`).join("")}</div>` : ""}
+      <div class="mhelp">${a.cheat_types ?? "–"} Cheat-Arten mit ${s.valid_variants} Einstellungen gewertet${s.invalid_variants ? `, ${s.invalid_variants} Einstellungen ohne messbaren Vorteil ausgelassen` : ""}. Jede Cheat-Art zählt gleich viel, bewertet nach ihrer stärksten Einstellung.</div>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+function livePanel(d) {
+  const live = d.live;
+  if (!live) return "";
+  const st = live.status || {};
+  const pairs = live.pairs || [];
+  const active = pairs.slice().sort((a, b) => (b.last_event_ms || 0) - (a.last_event_ms || 0))[0];
+  const statusWord = { running: "läuft", done: "fertig", error: "Fehler", pending: "wartet", "starting server": "Server startet" };
+  const bars = pairs.map(p => {
+    const total = p.total || 0, done = p.completed || 0;
+    const status = p.status?.status || (done >= total && total ? "done" : "");
+    let eta = "";
+    if (p.status?.pair_started && done > 0 && done < total) {
+      const elapsed = Date.now() / 1000 - p.status.pair_started;
+      eta = ` · noch etwa ${dur(elapsed / done * (total - done))}`;
+    } else if (status === "pending" && p.status?.estimate_seconds) eta = ` · dauert etwa ${dur(p.status.estimate_seconds)}`;
+    const curList = (p.current_all && p.current_all.length ? p.current_all : (p.current_info ? [p.current_info] : []));
+    const cur = curList.length ? ` · gerade: ${curList.map(c => `<b>${esc(c.scenario)}</b> ${esc(c.phase === "baseline" ? "ohne Cheat" : c.variant)}`).join(", ")}` : "";
+    const shards = p.status?.shards || [];
+    const workers = shards.length > 1 ? ` · ${shards.length} Worker: ${shards.filter(x => x.status === "running").length} laufen, ${shards.filter(x => x.status === "done").length} fertig` : "";
+    return `<div class="card">
+      <div><b>${esc(p.client)}</b> gegen <b>${esc(p.anticheat === "none" ? "kein AntiCheat" : p.anticheat)}</b> <span class="badge ${status === "running" ? "running" : status === "done" ? "finished" : status === "error" ? "failed" : ""}">${esc(statusWord[status] || status || "–")}</span></div>
+      <div class="progress"><div style="width:${total ? Math.min(100, done / total * 100) : 0}%"></div></div>
+      <div class="muted" style="font-size:12.5px">${done} von ${total || "?"} Tests${workers}${eta}${cur}${p.status?.restarts ? ` · ${p.status.restarts} Neustarts` : ""}${p.status?.error ? ` · <span class="bad">${esc(p.status.error)}</span>` : ""}</div>
+    </div>`;
+  }).join("");
+  const help = `<p class="mhelp">Ein Test dauert etwa 5 Sekunden: ein Cheat, eine Einstellung, eine Wiederholung. Jede Karte ist ein Client gegen ein AntiCheat.
+    ${st.workers > 1 ? `Es laufen bis zu ${st.workers} Worker gleichzeitig, jeder mit eigenem Server und Bot; große Läufe werden auf mehrere Worker verteilt.` : ""}</p>`;
+  if (SNAPSHOT) return `<h3>Stand bei der Momentaufnahme</h3>${help}<div class="cards">${bars}</div>`;
+  const flags = (active?.flags || []).slice().reverse();
+  const recent = (active?.recent || []).slice().reverse();
+  const stale = active?.last_event_ms && live.now_ms - active.last_event_ms > 60000 ? ` <span class="bad">· seit ${dur((live.now_ms - active.last_event_ms) / 1000)} nichts Neues</span>` : "";
+  return `<h3><span class="dot live"></span> Live${stale}</h3>${help}
+    <div class="cards">${bars}</div>
+    ${active ? `<div class="livegrid">
+      <div class="card"><div class="muted" style="margin-bottom:6px">Alarme des AntiCheats (Check-Name und Verstoßzähler)</div>
+        <div class="feed">${flags.length ? flags.map(f => `<div><span class="t">${clock(f.time_ms)}</span><span><b>${esc(f.check)}</b> <span class="muted">Verstoß ${esc(f.vl)}</span></span></div>`).join("") : '<div class="muted">Noch keine Alarme.</div>'}</div></div>
+      <div class="card"><div class="muted" style="margin-bottom:6px">Zuletzt fertige Tests (gemessener Wert)</div>
+        <div class="feed">${recent.length ? recent.map(e => `<div><span class="t">${clock(e.time_ms)}</span><span>${e.type === "kick" ? `<span class="bad">vom Server geworfen</span> ${esc(e.trial)}: ${esc(e.reason)}` : `${esc(e.trial)} <span class="muted">${esc((METRICS[e.metric] || {}).label || e.metric)}: ${de(e.value, 2)}</span>`}</span></div>`).join("") : '<div class="muted">Noch keine Tests fertig.</div>'}</div></div>
+    </div>` : ""}`;
+}
+
+function matrix(d) {
+  const variants = d.variants || [];
+  const clients = [...new Set(variants.map(v => v.client))];
+  if (!clients.length) return "";
+  if (!clients.includes(state.client)) state.client = clients[0];
+  const client = state.client;
+  const vs = variants.filter(v => v.client === client);
+  const acs = [...new Set(vs.map(v => v.anticheat))].filter(a => a !== "none").sort();
+  const keys = [...new Map(vs.map(v => [`${v.category}|${v.scenario}|${v.variant}`, v])).values()]
+    .sort((a, b) => (a.category + a.scenario + a.variant).localeCompare(b.category + b.scenario + b.variant));
+  const idx = new Map(vs.map(v => [`${v.anticheat}|${v.scenario}|${v.variant}`, v]));
+  const tabs = clients.length > 1 ? `<div class="tabs">${clients.map(c => `<button class="tab ${c === client ? "on" : ""}" data-client="${esc(c)}">${esc(c)}</button>`).join("")}</div>` : "";
+  let lastCat = null;
+  const rows = keys.map(k => {
+    const ref = idx.get(`none|${k.scenario}|${k.variant}`) || k;
+    const notes = [];
+    for (const a of ["none", ...acs]) {
+      const v = idx.get(`${a}|${k.scenario}|${k.variant}`);
+      if (!v) continue;
+      if (v.bypass_only) notes.push(`Gezielter Bypass: bringt nur mit ${a} einen Vorteil.`);
+      if (v.kicks) notes.push(`${a === "none" ? "Ohne AntiCheat" : a}: ${v.kicks}× vom Server geworfen (${(v.kick_reasons || []).join("; ")}).`);
+      if (v.setup_issues?.length) notes.push(`Einstellung nicht übernommen: ${v.setup_issues.join("; ")}.`);
+    }
+    if (!ref.effective && !acs.some(a => idx.get(`${a}|${k.scenario}|${k.variant}`)?.bypass_only)) notes.unshift("Bringt schon ohne AntiCheat keinen Vorteil, deshalb nicht gewertet.");
+    const cells = acs.map(a => {
+      const v = idx.get(`${a}|${k.scenario}|${k.variant}`);
+      if (!v) return "<td></td>";
+      const vd = verdict(v);
+      const checks = (v.top_checks || []).map(([n, c]) => `${esc(n)} ×${c}`).join(", ");
+      return `<td class="result"><span class="pill ${vd.cls}">${esc(vd.text)}</span>
+        <div class="mhelp">bemerkt in ${v.detected} von ${v.trials} Tests${v.median_time_to_flag_s != null ? `, nach ${de(v.median_time_to_flag_s)} s` : ""}${v.default_detected != null ? ` · Admin-Alarm in ${v.default_detected} von ${v.trials}` : ""}${v.valid && v.retained_advantage != null ? ` · ${leftText(v.retained_advantage)}` : ""}</div>
+        ${checks ? `<div class="mhelp">Alarm durch: ${checks}</div>` : ""}</td>`;
+    }).join("");
+    const catRow = k.category !== lastCat ? `<tr class="catrow"><td colspan="${3 + acs.length}">${esc(CATEGORY[k.category] || k.category)}</td></tr>` : "";
+    lastCat = k.category;
+    return `${catRow}<tr><td class="cheat"><b>${esc(k.scenario)}</b> <span class="chip">${esc(k.variant)}</span><div class="mhelp">${esc(CHEATS[k.scenario] || "")}</div></td>
+      <td class="adv ${ref.effective ? "" : "muted"}">${esc(advantageText(ref))}${ref.baseline_strategy ? `<div class="mhelp">verglichen mit: ${esc(strategyName(ref.baseline_strategy))}</div>` : ""}</td>${cells}<td class="note">${esc([...new Set(notes)].join(" "))}</td></tr>`;
+  }).join("");
+  return `<h3>Ergebnis pro Cheat</h3>${tabs}
+    <p class="mhelp">Jede Zeile ist ein Cheat in einer bestimmten Einstellung (grauer Kasten). „Vorteil ohne AntiCheat“ zeigt, was der Cheat bringt, wenn niemand aufpasst.
+      Die Ergebnis-Spalte sagt, ob das AntiCheat den Cheat bemerkt hat und wie viel vom Vorteil übrig bleibt.</p>
+    <div class="wrap"><table><tr><th>Cheat</th><th>Vorteil ohne AntiCheat</th>
+      ${acs.map(a => `<th>Ergebnis gegen ${esc(a)}</th>`).join("")}<th>Hinweise</th></tr>${rows}</table></div>`;
+}
+
+function falsePositives(d) {
+  const rows = (d.baselines || []).filter(b => b.anticheat !== "none" && (!state.client || b.client === state.client));
+  if (!rows.length) return "";
+  return `<h3>Fehlalarme</h3>
+    <p class="mhelp">Hier spielt der Bot dieselben Situationen ganz <i>ohne</i> Cheat. Jeder Alarm ist also ein Fehlalarm gegen einen ehrlichen Spieler.</p>
+    <div class="wrap"><table><tr><th>AntiCheat</th><th>Situation</th><th>Fehlalarme (Flags)</th><th>Admin-Alarm</th><th>Alarm durch</th></tr>
+    ${rows.map(b => `<tr><td>${esc(b.anticheat)}</td><td>${esc(b.scenario)}<div class="mhelp">${esc(Object.keys(b.strategies || {}).map(strategyName).join(", "))}</div></td><td class="n ${cls(b.false_positive_rate, false)}">${b.flagged} von ${b.trials} Tests</td>
+      <td class="n">${b.default_flagged == null ? "–" : `${b.default_flagged} von ${b.trials}`}</td>
+      <td>${(b.top_checks || []).map(([n, c]) => `<span class="chip">${esc(n)} ×${c}</span>`).join(" ") || '<span class="muted">–</span>'}</td></tr>`).join("")}</table></div>`;
+}
+
+function health(d) {
+  const runs = Object.entries(d.runs || {});
+  if (!runs.length) return "";
+  const tps = (v) => v == null ? "–" : de(v, 1);
+  return `<h3>Technische Prüfung</h3>
+    <p class="mhelp">Zeigt, ob die Messung selbst sauber lief. „Verbindungen“ sollte etwa der Zahl der Tests entsprechen, weil der Bot sich vor jedem Test neu verbindet.
+      „Alarme außerhalb der Tests“ fallen z. B. direkt nach dem Einloggen an und zählen nicht in die Wertung.
+      <b>Messgüte:</b> Minecraft läuft mit 20 Ticks pro Sekunde. Schaffen Client oder Server das nicht, weil der Rechner überlastet ist (z. B. zu viele parallele Worker),
+      können AntiCheats Verzögerungen als Cheat werten. Solche Läufe sind rot markiert und sollten wiederholt werden.</p>
+    <div class="wrap"><table><tr><th>Client gegen AntiCheat</th><th>Durchgelaufen</th><th>Worker</th><th>Client Ticks/s</th><th>Server Ticks/s</th><th>Server ms pro Tick</th><th>Verbindungen</th><th>Alarme außerhalb der Tests</th><th>Fehler</th></tr>
+    ${runs.map(([k, i]) => {
+      const q = i.quality || {};
+      const bad = q.overloaded ? "bad" : "";
+      return `<tr><td>${esc(k.replace("/", " gegen ").replace(" gegen none", " gegen kein AntiCheat"))}${q.overloaded ? ' <span class="pill bad">überlastet</span>' : ""}</td>
+        <td>${i.done ? "ja" : "nein"}</td><td class="n">${esc(i.shards || 1)}</td>
+        <td class="n ${bad}">${tps(q.client_tps)}${q.client_tps_min != null ? ` <span class="muted">(min ${tps(q.client_tps_min)})</span>` : ""}</td>
+        <td class="n ${bad}">${tps(q.server_tps)}</td><td class="n">${q.server_mspt == null ? "–" : de(q.server_mspt, 1)}</td>
+        <td class="n">${esc(i.joins ?? "–")}</td><td class="n">${esc(i.unattributed_flags)}</td>
+        <td class="note">${esc((i.errors || []).slice(0, 3).map(e => e.message || JSON.stringify(e)).join("; ") || "keine")}</td></tr>`;
+    }).join("")}</table></div>`;
+}
+
+function renderDetail() {
+  const d = state.detail;
+  if (!d) return;
+  const m = d.meta || {};
+  const scrollY = window.scrollY;
+  $("#main").innerHTML = `
+    <h2>${esc(m.run_id || state.selected)} <span class="badge ${esc(d.state)}">${esc(stateLabel[d.state] || d.state)}</span></h2>
+    <div class="muted">${[m.name, m.minecraft && "Minecraft " + m.minecraft, m.repetitions && m.repetitions + " Wiederholungen pro Test", m.started && "Start " + m.started, m.finished && d.state !== "running" && "Ende " + m.finished].filter(Boolean).map(esc).join(" · ")}
+      ${d.has_report ? ` · <a href="/runs/${encodeURIComponent(state.selected)}/report" target="_blank">Report</a>` : ""}</div>
+    ${Object.values(d.runs || {}).some(i => i.quality?.overloaded) ? `<div class="card warn"><b>Achtung, Messung möglicherweise verfälscht:</b> Mindestens ein Teil dieses Runs lief auf einem überlasteten Rechner (weniger als 18,5 Ticks pro Sekunde). Details unter „Technische Prüfung“. Am besten mit weniger Workern wiederholen.</div>` : ""}
+    ${intro()}
+    ${livePanel(d)}
+    <h3>Zusammenfassung${d.state === "running" ? ' <span class="muted" style="font-weight:400">(Zwischenstand)</span>' : ""}</h3>
+    ${summaryCards(d)}
+    ${matrix(d)}
+    ${falsePositives(d)}
+    ${health(d)}`;
+  document.querySelectorAll(".tab").forEach(b => b.onclick = () => { state.client = b.dataset.client; renderDetail(); });
+  const details = document.getElementById("intro");
+  if (details) details.addEventListener("toggle", () => {
+    try { localStorage.setItem("acbench.intro", details.open ? "open" : "closed"); } catch (e) { /* storage blocked */ }
+  });
+  window.scrollTo(0, scrollY);
+}
+
+
+// ---- Comparison (start page) ------------------------------------------------------------------
+async function loadCompare() {
+  // Finished runs are fetched once; running ones on every refresh.
+  await Promise.all(state.runs.map(async r => {
+    const cached = state.cache[r.run_id];
+    if (cached && cached.state === r.state && r.state !== "running") return;
+    try { state.cache[r.run_id] = { state: r.state, detail: await getJSON(`/api/runs/${encodeURIComponent(r.run_id)}`) }; } catch (e) { /* shown as missing */ }
+  }));
+  if (state.view === "compare") renderCompare();
+}
+
+/** Newest result per client × anticheat; a finished run beats a run that is still going. */
+function comparePairs() {
+  const pairs = new Map();
+  for (const run of state.runs) {
+    const d = state.cache[run.run_id]?.detail;
+    if (!d) continue;
+    const rank = (run.state === "running" ? "0" : "1") + (d.meta?.started || "");
+    const combos = new Set((d.variants || []).filter(v => v.anticheat !== "none").map(v => `${v.client}|${v.anticheat}`));
+    for (const key of combos) {
+      const [client, ac] = key.split("|");
+      if (pairs.has(key) && pairs.get(key).rank >= rank) continue;
+      pairs.set(key, {
+        client, ac, rank, run_id: run.run_id, run_state: run.state, started: d.meta?.started,
+        summary: (d.summaries || []).find(x => x.client === client && x.anticheat === ac),
+        variants: (d.variants || []).filter(v => v.client === client && v.anticheat === ac),
+        baselines: (d.baselines || []).filter(b => b.client === client && b.anticheat === ac),
+      });
+    }
+  }
+  return pairs;
+}
+
+/** Remembers the selection per viewer; clients or anticheats that appear later start selected. */
+function loadPick(clients, acs) {
+  if (state.pick) return;
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem("acbench.compare") || "null"); } catch (e) { /* storage blocked */ }
+  const restore = (values, chosen, known) => new Set(values.filter(v => !known?.includes(v) || chosen?.includes(v)));
+  state.pick = {
+    clients: restore(clients, saved?.clients, saved?.knownClients),
+    acs: restore(acs, saved?.acs, saved?.knownAcs),
+    knownClients: clients, knownAcs: acs,
+  };
+}
+
+function savePick() {
+  try {
+    localStorage.setItem("acbench.compare", JSON.stringify({
+      clients: [...state.pick.clients], acs: [...state.pick.acs], knownClients: state.pick.knownClients, knownAcs: state.pick.knownAcs,
+    }));
+  } catch (e) { /* storage blocked */ }
+}
+
+function scenarioResult(pair, scenario) {
+  if (!pair) return { html: '<span class="muted">nicht getestet</span>' };
+  const vs = pair.variants.filter(v => v.scenario === scenario);
+  if (!vs.length) return { html: '<span class="muted">Client hat keinen solchen Cheat</span>' };
+  const valid = vs.filter(v => v.valid);
+  if (!valid.length) return { html: `<span class="pill muted">nicht gewertet</span><div class="mhelp">Keine der ${vs.length} Einstellungen brachte einen messbaren Vorteil.</div>` };
+  // The cheater picks the setting that works best for them.
+  const strongest = valid.slice().sort((a, b) => ((b.retained_advantage ?? -9) - (a.retained_advantage ?? -9)) || ((a.detection_rate ?? 0) - (b.detection_rate ?? 0)))[0];
+  const blocked = valid.filter(v => v.retained_advantage != null && v.retained_advantage <= 0.25).length;
+  const vd = verdict(strongest);
+  return { html: `<span class="pill ${vd.cls}">${esc(vd.text)}</span>
+    <div class="mhelp">${blocked} von ${valid.length} Einstellungen abgewehrt${valid.length > 1 ? ` · stärkste: ${esc(strongest.variant)}` : ""}${strongest.default_detected != null ? ` · Admin-Alarm in ${strongest.default_detected} von ${strongest.trials} Tests` : ""}</div>` };
+}
+
+function renderCompare() {
+  const pairs = comparePairs();
+  const all = [...pairs.values()];
+  const clients = [...new Set(all.map(p => p.client))].sort();
+  const acs = [...new Set(all.map(p => p.ac))].sort();
+  if (!all.length) {
+    $("#main").innerHTML = `<h2>Vergleich</h2><div class="empty">Noch keine ausgewerteten Runs. Ein Vergleich braucht mindestens einen Lauf mit AntiCheat und den Vergleichslauf ohne AntiCheat.</div>`;
+    return;
+  }
+  loadPick(clients, acs);
+  const selC = clients.filter(c => state.pick.clients.has(c));
+  const selA = acs.filter(a => state.pick.acs.has(a));
+  const toggles = (kind, values, chosen) => values.map(v => `<button class="tab ${chosen.has(v) ? "on" : ""}" aria-pressed="${chosen.has(v)}" data-pick="${kind}" data-value="${esc(v)}">${esc(v)}</button>`).join("");
+  const shown = selA.flatMap(a => selC.map(c => ({ a, c, p: pairs.get(`${c}|${a}`) })));
+
+  const overview = selA.length && selC.length ? `<div class="wrap"><table class="overview"><tr><th>AntiCheat</th>${selC.map(c => `<th>gegen ${esc(c)}</th>`).join("")}</tr>
+    ${selA.map(a => `<tr><td><b>${esc(a)}</b></td>${selC.map(c => {
+      const p = pairs.get(`${c}|${a}`);
+      if (!p) return `<td class="muted">noch nicht getestet</td>`;
+      const x = p.summary?.all || {};
+      return `<td><span class="score">${num(p.summary?.score, 0)}</span>${p.run_state === "running" ? ' <span class="badge running">Zwischenstand</span>' : ""}
+        <div class="mhelp">${pct(x.detection_rate)} bemerkt · ${pct(x.default_detection_rate)} Admin-Alarm · ${pct(x.mitigation)} abgewehrt · ${pct(x.false_positive_rate)} Fehlalarme</div>
+        <div class="mhelp">aus Run <button class="linkbtn" data-run="${esc(p.run_id)}" data-client="${esc(c)}">${esc(p.run_id)}</button>${p.started ? ` vom ${esc(p.started.slice(0, 10))}` : ""}</div></td>`;
+    }).join("")}</tr>`).join("")}</table></div>` : `<div class="muted">Wähle mindestens ein AntiCheat und einen Client aus.</div>`;
+
+  const scenarios = [...new Map(shown.filter(x => x.p).flatMap(x => x.p.variants).map(v => [v.scenario, v.category])).entries()]
+    .sort((a, b) => (a[1] + a[0]).localeCompare(b[1] + b[0]));
+  let lastCat = null;
+  const cheatRows = scenarios.map(([scenario, category]) => {
+    const head = category !== lastCat ? `<tr class="catrow"><td colspan="${1 + shown.length}">${esc(CATEGORY[category] || category)}</td></tr>` : "";
+    lastCat = category;
+    return `${head}<tr><td class="cheat"><b>${esc(scenario)}</b><div class="mhelp">${esc(CHEATS[scenario] || "")}</div></td>
+      ${shown.map(x => `<td class="result">${scenarioResult(x.p, scenario).html}</td>`).join("")}</tr>`;
+  }).join("");
+  const cheats = shown.length ? `<h3>Cheat für Cheat</h3>
+    <p class="mhelp">Pro Cheat-Art zählt die Einstellung, mit der der Cheater am besten wegkommt. Wird nur eine von mehreren Einstellungen nicht abgewehrt, steht hier trotzdem „Vorteil bleibt“, denn ein Cheater würde genau diese wählen.</p>
+    <div class="wrap"><table><tr><th>Cheat</th>${shown.map(x => `<th>${esc(x.a)} gegen ${esc(x.c)}</th>`).join("")}</tr>${cheatRows}</table></div>` : "";
+
+  const fp = shown.filter(x => x.p).length ? `<h3>Fehlalarme</h3>
+    <p class="mhelp">Tests ohne Cheat, in denen das AntiCheat trotzdem Alarm geschlagen hat, über alle Situationen zusammen.</p>
+    <div class="wrap"><table><tr><th>Kombination</th><th>Fehlalarme</th><th>Alarm durch</th></tr>
+    ${shown.filter(x => x.p).map(x => {
+      const b = x.p.baselines;
+      const flagged = b.reduce((n, r) => n + r.flagged, 0), trials = b.reduce((n, r) => n + r.trials, 0);
+      const checks = {};
+      b.forEach(r => (r.top_checks || []).forEach(([n, c]) => checks[n] = (checks[n] || 0) + c));
+      return `<tr><td>${esc(x.a)} gegen ${esc(x.c)}</td><td class="n ${cls(trials ? flagged / trials : null, false)}">${flagged} von ${trials} Tests</td>
+        <td>${Object.entries(checks).map(([n, c]) => `<span class="chip">${esc(n)} ×${c}</span>`).join(" ") || '<span class="muted">–</span>'}</td></tr>`;
+    }).join("")}</table></div>` : "";
+
+  const scrollY = window.scrollY;
+  $("#main").innerHTML = `<h2>Vergleich</h2>
+    <p class="mhelp">Wähle aus, welche AntiCheats du gegen welche Clients vergleichen willst. Für jede Kombination nimmt die Seite den neuesten ausgewerteten Run.</p>
+    <div class="card picker">
+      <div class="pickrow"><span class="mlabel">AntiCheats</span>${toggles("ac", acs, state.pick.acs)}</div>
+      <div class="pickrow"><span class="mlabel">Clients</span>${toggles("client", clients, state.pick.clients)}</div>
+    </div>
+    ${intro()}
+    <h3>Übersicht</h3>
+    <p class="mhelp">Die Gesamtnote fasst zusammen. Clients werden mit unterschiedlich vielen Einstellungen getestet, deshalb lohnt der Blick auf „Cheat für Cheat“ darunter.</p>
+    ${overview}${cheats}${fp}`;
+  document.querySelectorAll("[data-pick]").forEach(b => b.onclick = () => {
+    const set = b.dataset.pick === "ac" ? state.pick.acs : state.pick.clients;
+    set.has(b.dataset.value) ? set.delete(b.dataset.value) : set.add(b.dataset.value);
+    savePick();
+    renderCompare();
+  });
+  document.querySelectorAll("[data-run]").forEach(b => b.onclick = () => { state.client = b.dataset.client; select(b.dataset.run).then(() => { state.client = b.dataset.client; renderDetail(); }); });
+  const details = document.getElementById("intro");
+  if (details) details.addEventListener("toggle", () => {
+    try { localStorage.setItem("acbench.intro", details.open ? "open" : "closed"); } catch (e) { /* storage blocked */ }
+  });
+  window.scrollTo(0, scrollY);
+}
+
+document.querySelectorAll(".views .tab").forEach(b => b.onclick = () => setView(b.dataset.view));
+$("#layout").classList.toggle("compare", state.view === "compare");
+document.querySelectorAll(".views .tab").forEach(b => b.classList.toggle("on", b.dataset.view === state.view));
+loadRuns();
+if (!SNAPSHOT) {
+  setInterval(loadRuns, 5000);
+  setInterval(() => { if (state.detail && ["running"].includes(state.detail.state)) loadDetail(); }, 3000);
+}
+</script>
+</body>
+</html>

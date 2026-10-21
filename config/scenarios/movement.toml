@@ -1,0 +1,108 @@
+# Movement scenarios. Each repetition runs every legal baseline strategy (cheat off) and every client variant
+# (cheat on). The analysis compares the cheat against the BEST legal strategy, chosen from the reference run
+# without anticheat, so that ordinary moves (e.g. sprint-jumping) never count as a cheat advantage.
+#
+# metric     = per-trial measurement used for the advantage (see README for the full list)
+# advantage  = "higher" or "lower": which direction of the metric helps the cheater
+# actions    = cheat-phase input script (cheat_actions overrides it)
+# baselines  = legal strategies [{ name, actions }]; defaults to one strategy using the same actions
+#
+# Action types: hold {keys, ticks, aim, cps, use}, wait {ticks}, look {pitch, yaw_delta},
+# slot {slot}, server {command}, repeat {times, actions}.
+# Keys: forward, back, left, right, jump, sneak, sprint.
+
+[[scenario]]
+id = "fly"
+cheat = "fly"
+arena = "open"
+description = "Hold forward + jump on an open platform."
+metric = "max_height_gain"
+advantage = "higher"
+actions = [{ type = "hold", keys = ["forward", "jump"], ticks = 100 }]
+
+[[scenario]]
+id = "speed"
+cheat = "speed"
+arena = "track"
+description = "Sprint straight along a flat track. Legal play may sprint-jump, which is faster than sprinting."
+metric = "forward_speed"
+advantage = "higher"
+actions = [{ type = "hold", keys = ["forward", "sprint"], ticks = 100 }]
+baselines = [
+  { name = "sprint", actions = [{ type = "hold", keys = ["forward", "sprint"], ticks = 100 }] },
+  { name = "sprintjump", actions = [{ type = "hold", keys = ["forward", "sprint", "jump"], ticks = 100 }] },
+]
+
+[[scenario]]
+id = "step"
+cheat = "step"
+arena = "stairs"
+description = "Walk into a staircase of full blocks. The cheat walks up without jumping; legal play jumps."
+metric = "max_height_gain"
+advantage = "higher"
+actions = [{ type = "hold", keys = ["forward"], ticks = 100 }]
+baselines = [
+  { name = "walk", actions = [{ type = "hold", keys = ["forward"], ticks = 100 }] },
+  { name = "jump", actions = [{ type = "hold", keys = ["forward", "jump"], ticks = 100 }] },
+]
+
+[[scenario]]
+id = "nofall"
+cheat = "nofall"
+arena = "fall"
+description = "Walk off a 12 block ledge."
+metric = "fall_damage"
+advantage = "lower"
+actions = [
+  { type = "hold", keys = ["forward"], ticks = 15 },
+  { type = "wait", ticks = 40 },
+]
+
+[[scenario]]
+id = "timer"
+cheat = "timer"
+arena = "track"
+description = "Sprint-jump along the track (the fastest legal movement); a faster game clock means more of it per second."
+metric = "forward_speed"
+advantage = "higher"
+actions = [{ type = "hold", keys = ["forward", "sprint", "jump"], ticks = 100 }]
+
+[[scenario]]
+id = "noslow"
+cheat = "noslow"
+arena = "track"
+description = "Eat golden apples while moving forward."
+metric = "forward_speed"
+advantage = "higher"
+loadout = ["golden_apple:64"]
+actions = [{ type = "hold", keys = ["forward"], use = true, ticks = 100 }]
+baselines = [
+  { name = "walk", actions = [{ type = "hold", keys = ["forward"], use = true, ticks = 100 }] },
+  { name = "jump", actions = [{ type = "hold", keys = ["forward", "jump"], use = true, ticks = 100 }] },
+]
+
+[[scenario]]
+id = "jesus"
+cheat = "jesus"
+arena = "pool"
+description = "Cross a long water channel. Legal play swims (sprint, optionally holding jump)."
+metric = "forward_speed"
+advantage = "higher"
+actions = [{ type = "hold", keys = ["forward", "sprint"], ticks = 100 }]
+baselines = [
+  { name = "sprint", actions = [{ type = "hold", keys = ["forward", "sprint"], ticks = 100 }] },
+  { name = "sprintjump", actions = [{ type = "hold", keys = ["forward", "sprint", "jump"], ticks = 100 }] },
+]
+
+[[scenario]]
+id = "spider"
+cheat = "spider"
+arena = "wall"
+description = "Walk into a tall wall."
+metric = "max_height_gain"
+advantage = "higher"
+actions = [{ type = "hold", keys = ["forward"], ticks = 100 }]
+baselines = [
+  { name = "walk", actions = [{ type = "hold", keys = ["forward"], ticks = 100 }] },
+  { name = "jump", actions = [{ type = "hold", keys = ["forward", "jump"], ticks = 100 }] },
+]

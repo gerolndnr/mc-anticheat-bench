@@ -1,0 +1,79 @@
+# Maps the client-neutral cheat ids used by scenarios to Meteor modules and settings.
+# Setting names/values use Meteor's own syntax (same as its ".settings" command).
+# Run a benchmark once and check results/<run>/clients/meteor/modules.json for all modules and options.
+id = "meteor"
+name = "Meteor Client"
+adapter = "meteor"
+
+[download]
+url = "https://meteorclient.com/api/download?version={minecraft}"
+filename = "meteor-client-{minecraft}.jar"
+
+# auto_modes = "<setting>": every option of that setting (read from the module dump) becomes a variant.
+# Hand-written variants add specific values; variants without effect in the reference run are not repeated
+# against anticheats (screen_variants in benchmark.toml).
+
+# --- movement ---
+[cheats.fly]
+module = "flight"
+auto_modes = "mode"
+
+[cheats.speed]
+module = "speed"
+auto_modes = "mode"
+# Meteor's default vanilla-speed (5.6 b/s) equals sprinting, so explicit values are tested as well.
+variants.vanilla8 = { mode = "Vanilla", vanilla-speed = "8" }
+variants.vanilla_closet = { mode = "Vanilla", vanilla-speed = "6.2" }
+
+[cheats.step]
+module = "step"
+variants.default = {}
+
+[cheats.nofall]
+module = "no-fall"
+auto_modes = "mode"
+
+[cheats.timer]
+module = "timer"
+variants.x1_2 = { multiplier = "1.2" }
+variants.x2 = { multiplier = "2" }
+
+[cheats.noslow]
+module = "no-slow"
+variants.items = { items = "true" }
+
+[cheats.jesus]
+module = "jesus"
+auto_modes = "mode"
+
+[cheats.spider]
+module = "spider"
+variants.default = {}
+
+# --- combat ---
+[cheats.killaura]
+module = "kill-aura"
+variants.default = {}
+variants.closet = { range = "3.0", rotate = "Always" }
+
+[cheats.reach]
+module = "reach"
+variants.plus05 = { extra-entity-reach = "0.5" }
+variants.plus1 = { extra-entity-reach = "1.0" }
+
+[cheats.velocity]
+module = "velocity"
+variants.zero = { knockback-horizontal = "0", knockback-vertical = "0" }
+variants.half = { knockback-horizontal = "0.5", knockback-vertical = "1" }
+
+[cheats.criticals]
+module = "criticals"
+auto_modes = "mode"
+exclude_modes = ["None"]
+# Packet modes send position packets that Paper 26.3 itself rejects ("Invalid move player packet received").
+
+[cheats.autoclicker]
+module = "auto-clicker"
+# Meteor waits delay + 1 ticks between clicks: delay 1 = 10 CPS, delay 0 = 20 CPS.
+variants.cps10 = { mode-left = "Press", delay-left = "1", mode-right = "Disabled" }
+variants.cps20 = { mode-left = "Press", delay-left = "0", mode-right = "Disabled" }

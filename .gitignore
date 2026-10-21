@@ -1,0 +1,16 @@
+cache/
+work/
+**/build/
+**/.gradle/
+__pycache__/
+*.pyc
+
+# Results: only the evaluations are versioned, not the raw event and server/client logs.
+results/**
+!results/*/
+!results/*/run.json
+!results/*/results.json
+!results/*/trials.csv
+!results/*/report.md
+!results/*/report.html
+!results/dashboard.html

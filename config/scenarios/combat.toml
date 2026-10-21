@@ -1,0 +1,84 @@
+# Combat scenarios. The target is a second bot player ("player" targets, see target_username in
+# benchmark.toml) pinned in place by the collector; offsets are relative to the arena spawn (forward = +X).
+# The driver aims like a human (capped turn rate, noise) when aim = true.
+
+[[scenario]]
+id = "killaura"
+cheat = "killaura"
+arena = "combat"
+description = "Target stands behind the player. Clicking without turning around cannot hit it; KillAura can."
+metric = "hits"
+advantage = "higher"
+loadout = ["diamond_sword"]
+targets = [{ type = "player", forward = 3.0 }]
+cheat_actions = [{ type = "look", yaw_delta = 180.0 }, { type = "hold", ticks = 100 }]
+baselines = [
+  { name = "click", actions = [{ type = "look", yaw_delta = 180.0 }, { type = "hold", cps = 10, ticks = 100 }] },
+]
+
+[[scenario]]
+id = "reach"
+cheat = "reach"
+arena = "combat"
+description = "Aim and click at a target whose hitbox is 3.4 blocks away (vanilla reach is 3.0)."
+metric = "hits"
+advantage = "higher"
+loadout = ["diamond_sword"]
+targets = [{ type = "player", forward = 3.7 }]
+actions = [{ type = "hold", aim = true, cps = 4, ticks = 100 }]
+
+[[scenario]]
+id = "velocity"
+cheat = "velocity"
+arena = "combat"
+description = "Get hit from behind five times; knockback is read 40 ticks after each hit. Legal play may jump-reset."
+metric = "knockback_taken"
+advantage = "lower"
+targets = [{ type = "player", role = "attacker", forward = -1.2 }]
+actions = [
+  { type = "wait", ticks = 10 },
+  { type = "repeat", times = 5, actions = [
+    { type = "server", command = "knockback" },
+    { type = "wait", ticks = 50 },
+  ] },
+]
+baselines = [
+  { name = "stand", actions = [
+    { type = "wait", ticks = 10 },
+    { type = "repeat", times = 5, actions = [{ type = "server", command = "knockback" }, { type = "wait", ticks = 50 }] },
+  ] },
+  { name = "jumpreset", actions = [
+    { type = "wait", ticks = 10 },
+    { type = "repeat", times = 5, actions = [{ type = "server", command = "knockback" }, { type = "hold", keys = ["jump"], ticks = 50 }] },
+  ] },
+]
+
+[[scenario]]
+id = "criticals"
+cheat = "criticals"
+arena = "combat"
+description = "Hit a close target with full attack cooldown. The cheat crits from the ground; legal play crits by jumping."
+metric = "crits"
+advantage = "higher"
+loadout = ["diamond_sword"]
+targets = [{ type = "player", forward = 2.5 }]
+actions = [{ type = "hold", aim = true, cps = 1.5, ticks = 120 }]
+baselines = [
+  { name = "ground", actions = [{ type = "hold", aim = true, cps = 1.5, ticks = 120 }] },
+  { name = "jump", actions = [{ type = "hold", keys = ["jump"], aim = true, cps = 1.5, ticks = 120 }] },
+]
+
+[[scenario]]
+id = "autoclicker"
+cheat = "autoclicker"
+arena = "combat"
+description = "Fast human clicking (7 and 12 CPS) vs. the autoclicker while the driver only aims."
+metric = "swings_per_second"
+advantage = "higher"
+loadout = ["diamond_sword"]
+targets = [{ type = "player", forward = 2.5 }]
+cheat_actions = [{ type = "hold", aim = true, ticks = 100 }]
+baselines = [
+  { name = "cps7", actions = [{ type = "hold", aim = true, cps = 7, ticks = 100 }] },
+  { name = "cps12", actions = [{ type = "hold", aim = true, cps = 12, ticks = 100 }] },
+]

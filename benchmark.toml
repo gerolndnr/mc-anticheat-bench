@@ -1,0 +1,50 @@
+# Top-level benchmark definition. Paths are relative to this file.
+name = "acbench-step1"
+minecraft = "26.3"
+seed = 42
+repetitions = 3
+# Flags up to this many server ticks after a trial ended still count for it (alerts can lag behind).
+grace_ticks = 40
+
+categories = ["movement", "combat"]
+clients = ["meteor"]
+# "none" is mandatory: it measures the raw advantage of every cheat without any anticheat.
+anticheats = ["none", "grim"]
+
+[server]
+paper_build = "latest"    # or a build number, e.g. 207
+memory = "2G"
+port = 25599
+# Keep vanilla's own movement checks off so only the anticheat under test is measured.
+vanilla_movement_checks = false
+
+[client]
+fabric_loader = "0.19.5"
+memory = "3G"
+username = "BenchBot"
+# Second bot that stands in as the player target in combat scenarios (targets with type = "player").
+target_username = "BenchTarget"
+target_memory = "1500M"
+headless = true           # run under xvfb-run
+max_restarts = 3          # restarts in a row without progress before the run is aborted
+timeout_seconds = 3600      # minimum per client × anticheat; grows to twice the plan estimate for large plans
+
+[parallel]
+# Parallel workers; each runs its own server, bot and target bot on port + worker index.
+# "auto" = one worker per ~3 CPU cores and ~7 GB RAM. Every run reports client and server tick rates and marks
+# overloaded shards, so check "Messgüte" in the dashboard before trusting results from many workers.
+workers = "auto"
+# Client × anticheat runs smaller than this are not split further.
+min_trials_per_shard = 30
+
+[timing]
+start_delay_ticks = 100   # after joining, before the first trial
+setup_ticks = 30          # between arena setup and trial start
+cooldown_ticks = 40       # between trials
+# Leave and rejoin before every trial so the anticheat starts each trial with fresh per-player state.
+# Without it, violation levels carry over and detection depends on which trials ran before.
+reconnect_between_trials = true
+rejoin_settle_ticks = 40  # after rejoining, before the arena setup
+# Anticheat runs repeat only the variants that showed an advantage in the reference run ("none"),
+# plus variants named after the anticheat (targeted bypasses that can only work against it).
+screen_variants = true

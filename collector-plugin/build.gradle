@@ -1,0 +1,27 @@
+plugins {
+	id 'java'
+}
+
+group = 'dev.acbench'
+base { archivesName = 'acbench-collector' }
+
+repositories {
+	maven { url = 'https://repo.papermc.io/repository/maven-public/' }
+	mavenCentral()
+}
+
+dependencies {
+	compileOnly "io.papermc.paper:paper-api:${project.paper_api_version}"
+	// Paper ships log4j-core; the collector attaches an appender to read anticheat alerts from the console.
+	compileOnly 'org.apache.logging.log4j:log4j-core:2.24.3'
+}
+
+java {
+	toolchain.languageVersion = JavaLanguageVersion.of(25)
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+	filesMatching("plugin.yml") { expand "version": version }
+}

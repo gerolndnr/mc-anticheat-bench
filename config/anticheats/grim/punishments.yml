@@ -1,0 +1,38 @@
+# Benchmark profile: alert (= console line) on every violation, no kicks or bans.
+Punishments:
+  Simulation:
+    remove-violations-after: 300
+    checks: ["Simulation", "GroundSpoof", "Timer", "TimerLimit", "NoFall"]
+    commands: ["1:1 [alert]"]
+  Knockback:
+    remove-violations-after: 300
+    checks: ["Knockback", "Explosion"]
+    commands: ["1:1 [alert]"]
+  Post:
+    remove-violations-after: 300
+    checks: ["Post"]
+    commands: ["1:1 [alert]"]
+  BadPackets:
+    remove-violations-after: 300
+    checks: ["BadPackets", "PacketOrder", "Crash"]
+    commands: ["1:1 [alert]"]
+  Reach:
+    remove-violations-after: 300
+    checks: ["Reach"]
+    commands: ["1:1 [alert]"]
+  Hitboxes:
+    remove-violations-after: 300
+    checks: ["Hitboxes"]
+    commands: ["1:1 [alert]"]
+  Misc:
+    remove-violations-after: 300
+    checks: ["Vehicle", "NoSlow", "Sprint", "MultiActions", "Place", "Baritone", "Break", "TransactionOrder", "Elytra", "Chat", "Exploit"]
+    commands: ["1:1 [alert]"]
+  Combat:
+    remove-violations-after: 300
+    checks: ["Interact", "Aim"]
+    commands: ["1:1 [alert]"]
+  Autoclicker:
+    remove-violations-after: 300
+    checks: ["Autoclicker"]
+    commands: ["1:1 [alert]"]

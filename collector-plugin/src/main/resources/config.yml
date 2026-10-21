@@ -1,0 +1,6 @@
+# Replaced by the orchestrator for every run.
+plan_file: plugins/AcBenchCollector/plan.json
+output_file: plugins/AcBenchCollector/events.jsonl
+anticheat: none
+vanilla_movement_checks: false
+flag_sources: []

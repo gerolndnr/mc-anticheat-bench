@@ -1,0 +1,3 @@
+# Reference run without any anticheat: measures how much advantage each cheat gives at all.
+id = "none"
+name = "No anticheat"

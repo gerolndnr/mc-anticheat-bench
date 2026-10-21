@@ -1,0 +1,74 @@
+id = "grim"
+name = "GrimAC"
+# Bukkit plugin name; the run is aborted if it is not enabled after server start.
+plugin = "GrimAC"
+
+[download]
+modrinth = "grimac"
+loader = "paper"
+file_regex = '^grimac-bukkit-.*\.jar$'
+# Only alpha builds exist for 26.3; 2.3.74-d490dc9 fails to load (missing shaded class), so pin the build before it.
+version = "2.3.74-52787c6"
+
+# Grim prints alerts to the console ("Grim » BenchBot failed Simulation (x3) ...").
+[[flag_sources]]
+type = "log"
+pattern = '(?<player>[A-Za-z0-9_]{3,16}) failed (?<check>[A-Za-z0-9_ ./-]+?)\*? \(x(?<vl>[0-9.]+)\)'
+
+# Files copied into the server before start (target path relative to the server dir).
+# The benchmark profile alerts on every violation and never punishes, so detection is measured
+# independently of Grim's default alert thresholds. Remove it to test Grim's stock thresholds.
+[files]
+"plugins/GrimAC/punishments.yml" = "grim/punishments.yml"
+
+# Grim's stock punishments.yml (2.3.74). With the stock config Grim only alerts once a group has collected
+# `alert_after` violations; the analysis replays every captured violation against these thresholds to report
+# "would alert with default settings" next to "any flag". A check belongs to a group when its name (or alias)
+# contains one of the group's entries, case-insensitive, as in Grim's PunishmentManager.
+[default_alert_aliases]
+AntiKB = "AntiKnockback"
+
+[[default_alerts]]
+group = "Simulation"
+checks = ["Simulation", "GroundSpoof", "Timer", "TimerLimit", "NoFall"]
+alert_after = 100
+
+[[default_alerts]]
+group = "Knockback"
+checks = ["Knockback", "Explosion"]
+alert_after = 5
+
+[[default_alerts]]
+group = "Post"
+checks = ["Post"]
+alert_after = 20
+
+[[default_alerts]]
+group = "BadPackets"
+checks = ["BadPackets", "PacketOrder", "Crash"]
+alert_after = 20
+
+[[default_alerts]]
+group = "Reach"
+checks = ["Reach"]
+alert_after = 1
+
+[[default_alerts]]
+group = "Hitboxes"
+checks = ["Hitboxes"]
+alert_after = 5
+
+[[default_alerts]]
+group = "Misc"
+checks = ["Vehicle", "NoSlow", "Sprint", "MultiActions", "Place", "Baritone", "Break", "TransactionOrder", "Elytra", "Chat", "Exploit"]
+alert_after = 10
+
+[[default_alerts]]
+group = "Combat"
+checks = ["Interact", "Aim"]
+alert_after = 20
+
+[[default_alerts]]
+group = "Autoclicker"
+checks = ["Autoclicker"]
+alert_after = 20

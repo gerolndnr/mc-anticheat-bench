@@ -1,0 +1,13 @@
+{
+	"required": true,
+	"package": "dev.acbench.driver.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"MinecraftAccessor",
+		"MinecraftMixin",
+		"MultiPlayerGameModeMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
+}

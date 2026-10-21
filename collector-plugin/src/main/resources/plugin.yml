@@ -1,0 +1,9 @@
+name: AcBenchCollector
+version: '${version}'
+main: dev.acbench.collector.AcBenchCollector
+api-version: '26.3'
+description: Builds benchmark arenas, records anticheat flags and per-trial measurements.
+commands:
+  acbench:
+    description: Benchmark control channel used by the driver mod.
+    usage: /acbench <setup|begin|end|act|done> ...

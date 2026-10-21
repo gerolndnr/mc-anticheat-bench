@@ -1,0 +1,41 @@
+{
+  "name": "acbench-step1",
+  "run_id": "step1",
+  "minecraft": "26.3",
+  "repetitions": 3,
+  "grace_ticks": 40,
+  "scoring": {
+    "detection": 0.5,
+    "false_positives": 0.35,
+    "mitigation": 0.15
+  },
+  "clients": [
+    "meteor"
+  ],
+  "anticheats": [
+    "none",
+    "grim"
+  ],
+  "paper": "paper-26.3-209.jar",
+  "started": "2026-10-20 22:16:33",
+  "jars": {
+    "client:meteor": [
+      "meteor-client-26.3.jar"
+    ],
+    "anticheat:none": [],
+    "anticheat:grim": [
+      "grimac-bukkit-2.3.74-52787c6.jar"
+    ]
+  },
+  "status": {
+    "meteor/none": {
+      "restarts": 6,
+      "finished": true
+    },
+    "meteor/grim": {
+      "restarts": 0,
+      "finished": true
+    }
+  },
+  "finished": "2026-10-20 22:59:45"
+}

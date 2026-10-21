@@ -1,0 +1,101 @@
+# LiquidBounce Nextgen. Its official downloads go through a web queue without a direct jar link, so the
+# client is built from source at a pinned commit (GPL-3). Commit = nightly build 18412, LiquidBounce 0.41.1.
+id = "liquidbounce"
+name = "LiquidBounce Nextgen"
+adapter = "liquidbounce"
+# basicMode keeps the vanilla menus instead of the browser-based UI (also used by LiquidBounce's own game tests).
+jvm_args = ["-Dnet.ccbluex.liquidbounce.ui.basicMode=true"]
+# Enabled by default and switched off before every trial: AutoConfig pulls server-specific settings from the
+# LiquidBounce cloud, which would silently change the configuration under test.
+always_disable = ["AutoConfig"]
+
+[download]
+git = "https://github.com/CCBlueX/LiquidBounce.git"
+commit = "f2e592106c5c7bff4489fc879828fcc6cf9a3889"
+build = "./gradlew build -x test -x check --no-daemon --no-configuration-cache"
+artifact = "build/libs/liquidbounce-*.jar"
+
+[[dependencies]]
+modrinth = "fabric-language-kotlin"
+version = "1.14.1+kotlin.2.4.20"
+
+[[dependencies]]
+modrinth = "fabric-api"
+version = "0.160.5+26.3"
+
+# Setting names are LiquidBounce value keys relative to the module, values use its ".value set" syntax.
+# Every run writes all modules and keys to results/<run>/liquidbounce/<anticheat>/modules.json.
+# auto_modes = "<value key>": every option becomes a variant. Modes named after an anticheat version
+# (e.g. Grim2371 = Grim 2.3.71) are LiquidBounce's targeted bypasses. exclude_modes lists modes that need
+# items, damage or other entities the scenarios do not provide.
+
+# --- movement ---
+[cheats.fly]
+module = "Fly"
+auto_modes = "mode"
+exclude_modes = ["Enderpearl", "Fireball", "Explosion", "HycraftDamage", "VerusB3896Damage"]
+# Grim2859-V exploits Grim's own setbacks; Grim2373Jan15 needs an elytra and incoming knockback.
+
+[cheats.speed]
+module = "Speed"
+auto_modes = "mode"
+exclude_modes = ["PiercingAttack", "SentinelDamage"]
+# GrimCollide only boosts while colliding with other entities, so it shows no effect on the empty track.
+
+[cheats.step]
+module = "Step"
+auto_modes = "mode"
+
+[cheats.nofall]
+module = "NoFall"
+auto_modes = "mode"
+exclude_modes = ["MLG", "Mount", "Rettungsplatform"]
+
+[cheats.timer]
+module = "Timer"
+auto_modes = "mode"
+exclude_modes = ["Classic"]
+variants.x1_2 = { mode = "Classic", "mode.classic.speed" = "1.2" }
+variants.x2 = { mode = "Classic", "mode.classic.speed" = "2" }
+
+[cheats.noslow]
+module = "NoSlow"
+auto_modes = "consume.mode"
+
+[cheats.jesus]
+module = "LiquidWalk"
+auto_modes = "mode"
+
+[cheats.spider]
+module = "Spider"
+auto_modes = "mode"
+
+# --- combat ---
+[cheats.killaura]
+module = "KillAura"
+variants.default = {}
+variants.closet = { "range.rangeIncrease" = "0", "clicker.cPS" = "7..9" }
+
+[cheats.reach]
+module = "Reach"
+variants.plus05 = { "entity.rangeIncrease" = "0.5" }
+variants.plus1 = { "entity.rangeIncrease" = "1" }
+
+[cheats.velocity]
+module = "Velocity"
+auto_modes = "mode"
+variants.half = { mode = "Modify", "mode.modify.horizontal" = "0.5", "mode.modify.vertical" = "1" }
+
+[cheats.criticals]
+module = "Criticals"
+auto_modes = "mode"
+exclude_modes = ["None"]
+
+[cheats.autoclicker]
+module = "AutoClicker"
+# requiresNoInput: click without the player holding the attack key, like the Meteor variants.
+# By default LiquidBounce waits for the full attack cooldown (itemCooldown.minimum = 1.0), i.e. it is a
+# cooldown-aware 1.9 clicker; the cps variants switch that off to spam clicks like a classic autoclicker.
+variants.cooldown = { "attack.requiresNoInput" = "true" }
+variants.cps10 = { "attack.clicker.cPS" = "10..10", "attack.clicker.itemCooldown.minimum" = "0..0", "attack.requiresNoInput" = "true" }
+variants.cps20 = { "attack.clicker.cPS" = "20..20", "attack.clicker.itemCooldown.minimum" = "0..0", "attack.requiresNoInput" = "true" }

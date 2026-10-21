@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# Entry point: ./bench <build|fetch|plan|run|analyze> [options]
+DIR="$(cd "$(dirname "$0")" && pwd)"
+PYTHONPATH="$DIR/orchestrator${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m acbench "$@"
