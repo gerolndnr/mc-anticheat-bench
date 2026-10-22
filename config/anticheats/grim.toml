@@ -2,6 +2,8 @@ id = "grim"
 name = "GrimAC"
 # Bukkit plugin name; the run is aborted if it is not enabled after server start.
 plugin = "GrimAC"
+# The target bot only stands in as a target; the teleports pinning it drew Timer flags. Grim re-reads it periodically.
+target_bypass_permissions = ["grim.exempt"]
 
 [download]
 modrinth = "grimac"

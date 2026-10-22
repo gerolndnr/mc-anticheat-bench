@@ -90,7 +90,7 @@ def markdown(result: dict) -> str:
                      f"(bot held back or frozen), results of this pair do not measure the cheats**")
         reused = f", reused from {info['reused_from']}" if info.get("reused_from") else ""
         out.append(f"- `{key}`: finished={info['done']}, shards={info.get('shards') or 1}, joins={info.get('joins', '?')}, "
-                   f"unattributed flags={info['unattributed_flags']}, errors={len(info['errors'])}{load}{reused}")
+                   f"unattributed flags={info['unattributed_flags']}, target bot flags={info.get('target_flags', '?')}, errors={len(info['errors'])}{load}{reused}")
     out.append("")
     return "\n".join(out)
 
@@ -222,11 +222,11 @@ def html_report(result: dict) -> str:
                      + "<td>" + "".join(f"<span class='chip'>{e(str(n))} ×{c}</span>" for n, c in b["top_checks"]) + "</td></tr>")
     parts.append("</table></div>")
 
-    parts.append("<h2>Run health</h2><div class='wrap'><table><tr><th>Run</th><th>Finished</th><th>Joins</th><th>Unattributed flags</th><th>Errors</th></tr>")
+    parts.append("<h2>Run health</h2><div class='wrap'><table><tr><th>Run</th><th>Finished</th><th>Joins</th><th>Unattributed flags</th><th>Target bot flags</th><th>Errors</th></tr>")
     for key, info in result["runs"].items():
         errors = "; ".join(str(err.get("message", err)) for err in info["errors"][:5])
         parts.append(f"<tr><td>{e(key)}</td><td>{'yes' if info['done'] else 'no'}</td>" + _cell(str(info.get("joins", "?")))
-                     + _cell(str(info["unattributed_flags"]))
+                     + _cell(str(info["unattributed_flags"])) + _cell(str(info.get("target_flags", "?")))
                      + f"<td class='note'>{e(errors) or '–'}</td></tr>")
     parts.append("</table></div></main></body></html>")
     return "".join(parts)

@@ -2,6 +2,9 @@ id = "intave"
 name = "Intave"
 # Bukkit plugin name; the run is aborted if it is not enabled after server start.
 plugin = "Intave"
+# The target bot only stands in as a target; the teleports pinning it drew physics flags. Grants Intave's BYPASS trust
+# factor, which Intave resolves once on join; it then ignores every violation of that player.
+target_bypass_permissions = ["intave.bypass"]
 
 # Free, source-available base version (no cloud token, so no cloud machine-learning checks).
 [download]

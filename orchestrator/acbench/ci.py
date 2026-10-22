@@ -82,9 +82,9 @@ def _code_hash(root: Path) -> str:
 
 def pair_key(runner: Runner, client: Client, ac: AntiCheat, plan: dict) -> str:
     """Everything that decides one pair's measurement: the trial list and timing (the plan without run-specific
-    paths), the exact jars of server, client and anticheat, the anticheat's flag sources and config files, the server
-    and client settings and the measurement code. Analysis-only settings (scoring, default alerts) are left out, so
-    changing them re-analyzes instead of re-measuring."""
+    paths), the exact jars of server, client and anticheat, the anticheat's flag sources, config files and target bot
+    exemption, the server and client settings and the measurement code. Analysis-only settings (scoring, default
+    alerts) are left out, so changing them re-analyzes instead of re-measuring."""
     bench = runner.bench
     inputs = {
         "plan": {k: v for k, v in plan.items() if k not in _RUN_SPECIFIC},
@@ -92,6 +92,7 @@ def pair_key(runner: Runner, client: Client, ac: AntiCheat, plan: dict) -> str:
         "client": {"jvm_args": client.jvm_args, "adapter": client.adapter, "adapter_options": client.adapter_options,
                    "always_disable": client.always_disable},
         "anticheat": {"plugin": ac.plugin, "flag_sources": ac.flag_sources,
+                      "target_bypass_permissions": ac.target_bypass_permissions,
                       "files": {target: _file_hash(source) for target, source in sorted(ac.files.items())}},
         "jars": {jar.name: _file_hash(jar) for jar in [runner.paper_jar, *runner.client_jars[client.id], *runner.ac_jars[ac.id]]},
         "code": _code_hash(bench.root),

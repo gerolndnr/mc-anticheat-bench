@@ -250,6 +250,12 @@ Lege `config/anticheats/<id>.toml` an. Darin stehen:
   - ein Konsolen-Regex mit den benannten Gruppen `player`, `check` und optional `vl`, oder
   - `type = "event"` mit `plugin`, `class` und Getter-Ketten wie `player = "getPlayer.getName"`
 - optional `[files]` mit Konfigurationen, die vor dem Serverstart kopiert werden
+- `target_bypass_permissions = ["…"]`: die Bypass-Permission(s) des AntiCheats. Der Collector gibt sie beim Join
+  ausschließlich dem Ziel-Bot (`target_username`), nie dem Test-Bot. Der Ziel-Bot ist reine Infrastruktur: Ohne
+  Ausnahme bewerten AntiCheats die Teleports, mit denen der Collector ihn festhält, und können ihn zurücksetzen oder
+  seine Treffer im Velocity-Szenario verwerfen. Die Permission wird bei Join-Priorität `LOWEST` gesetzt, also bevor
+  ein AntiCheat sie beim Join liest (Intave liest sie nur dort). Bisher: Grim `grim.exempt`, Intave `intave.bypass`,
+  Spartan `spartan.bypass`. Ob sie greift, zeigt „Target bot flags“ im Report (sollte 0 sein).
 - optional `known_issues = ["…"]`: nachgewiesene Probleme des AntiCheats selbst (nicht des Benchmarks) auf der
   getesteten Version. Der Report führt sie neben den Zahlen auf; sie ändern nichts an der Messung.
 - optional `[[default_alerts]]` (`group`, `checks`, `alert_after`) und `[default_alert_aliases]`: die

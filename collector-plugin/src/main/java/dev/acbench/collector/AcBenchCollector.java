@@ -47,7 +47,7 @@ public final class AcBenchCollector extends JavaPlugin {
 		prepareWorld(world);
 		arenas = new Arenas(world, getConfig().getString("target_player", null));
 		arenas.build();
-		recorder = new TrialRecorder(log, arenas);
+		recorder = new TrialRecorder(log, arenas, this, getConfig().getStringList("target_permissions"));
 		Bukkit.getPluginManager().registerEvents(recorder, this);
 
 		flags = new FlagCapture(log, this);

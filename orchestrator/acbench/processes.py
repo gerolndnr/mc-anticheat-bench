@@ -110,6 +110,7 @@ class Server:
             "anticheat": self.ac.id,
             "vanilla_movement_checks": bool(self.bench.server.get("vanilla_movement_checks", False)),
             "target_player": self.bench.client.get("target_username", "BenchTarget"),
+            "target_permissions": self.ac.target_bypass_permissions,
             "flag_sources": self.ac.flag_sources,
         }
         (plugins / "AcBenchCollector").mkdir(parents=True)
