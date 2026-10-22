@@ -1,0 +1,122 @@
+# Benchmark profile for Spartan 4.0.9.0: punishments off for every check (Java and Bedrock), everything else
+# at its default. Spartan fills in the remaining options itself on first start.
+hit-reach:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+criticals:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+fast-clicks:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+velocity:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+kill-aura:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+irregular-movements:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+gravity-simulation:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+speed-simulation:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+exploits:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+more-packets:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+x-ray:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+impossible-actions:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+fast-break:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+fast-place:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+block-reach:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+no-swing:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+inventory-clicks:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+fast-heal:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+impossible-inventory:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}
+fast-eat:
+  punishments:
+    enabled:
+      java: false
+      bedrock: false
+    commands: {}

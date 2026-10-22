@@ -1,0 +1,34 @@
+id = "spartan"
+name = "Spartan"
+# Bukkit plugin name; the run is aborted if it is not enabled after server start.
+plugin = "Spartan"
+
+# Free edition from Modrinth (GPL-3). It detects as long as at most 5 players are online; a shard has 2.
+[download]
+modrinth = "spartan-anticheat"
+loader = "paper"
+file_regex = '^Spartan\.jar$'
+version = "4.0.9.0"
+
+# Without ProtocolLib Spartan only checks Bukkit events; with it, it runs its packet-based checks.
+# For 26.x only the rolling dev build works; it is cached and pinned per run like every other jar.
+[[dependencies]]
+url = "https://github.com/dmulloy2/ProtocolLib/releases/download/dev-build/ProtocolLib.jar"
+filename = "ProtocolLib.jar"
+
+# Spartan writes a detection to the console only once it prevents it, but fires its API event on every one
+# (Important.enable_developer_api, on by default). The event carries no violation level.
+[[flag_sources]]
+type = "event"
+plugin = "Spartan"
+class = "ai.idealistic.spartan.api.PlayerViolationEvent"
+player = "getPlayer.getName"
+check = "getHackType"
+
+# Punishments (by default a kick at the punishment level) are off for every check; detection, preventions and
+# setbacks stay at their defaults.
+[files]
+"plugins/Spartan/checks.yml" = "spartan/checks.yml"
+
+# No [[default_alerts]]: Spartan notifies once the time a check has accumulated (each violation adds a learned
+# average, which decays in real time) passes 30 s, which cannot be replayed from the captured events.

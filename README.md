@@ -2,7 +2,8 @@
 
 Der Benchmark testet AntiCheat-Plugins mit **echten Hack-Clients**. Abgedeckt sind die Bereiche **Movement** und
 **Combat** mit den Clients **Meteor** und **LiquidBounce Nextgen** (inklusive seiner gezielten Grim-Bypass-Modi)
-gegen die AntiCheats **Grim** und **Intave** (freie Basisversion, ohne Cloud-Checks).
+gegen die AntiCheats **Grim**, **Intave** (freie Basisversion, ohne Cloud-Checks) und **Spartan** (freie Edition,
+erkennt bis 5 Spieler online; ein Shard hat 2).
 Weitere Clients, AntiCheats und Szenarien kommen per Konfigurationsdatei dazu.
 
 ## Architektur
@@ -156,8 +157,8 @@ gleichzeitiger Jobs im Free-Plan) etwa gleich lange beschäftigt sind. Ein Shard
 ist jedes Paar ein Job, und GitHub startet die wartenden, sobald ein Runner frei wird. Alle Shards eines Runs messen
 dieselben Jars: Sie stehen mit Pfad in `run.json` (`jar_paths`) und werden nicht erneut aufgelöst.
 
-Downloads, der LiquidBounce-Build und die Modul-Dumps liegen im Actions-Cache und werden pro Konfiguration
-wiederverwendet. `refresh` lädt alles neu.
+Downloads, der LiquidBounce-Build und die Modul-Dumps liegen im Actions-Cache. Ändert sich die Konfiguration, startet
+der Lauf vom letzten Stand: Vorhandene Jars bleiben, nur neue werden geladen. `refresh` lädt alles neu.
 
 **Unveränderte Paare werden nicht neu gemessen.** Jedes Client×AntiCheat-Paar bekommt einen Schlüssel über alles, was
 seine Messung bestimmt: den Trial-Plan (Szenarien, Varianten, Wiederholungen, Seed, Timing), die Prüfsummen der Jars
@@ -255,7 +256,8 @@ Lege `config/anticheats/<id>.toml` an. Darin stehen:
   `by = "vl"` gilt stattdessen das gemeldete Violation-Level, für AntiCheats, die Verstöße gewichten (wie Intave)
 
 Wichtig: Für die Detection-Messung sollte der AntiCheat bei **jedem** Verstoß alarmieren und nicht kicken oder
-bannen. Beispiele dafür sind `config/anticheats/grim/punishments.yml` und `config/anticheats/intave/config.yml`.
+bannen. Beispiele dafür sind `config/anticheats/grim/punishments.yml`, `config/anticheats/intave/config.yml` und
+`config/anticheats/spartan/checks.yml`.
 
 ### Neues Szenario
 

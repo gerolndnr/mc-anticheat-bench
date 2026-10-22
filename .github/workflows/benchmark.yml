@@ -60,14 +60,18 @@ jobs:
       - id: keys
         run: |
           echo "launcher=launcher-$(python3 -c 'import tomllib; d = tomllib.load(open("benchmark.toml", "rb")); print(d["minecraft"] + "-" + d["client"].get("fabric_loader", ""))')" >> "$GITHUB_OUTPUT"
-      # Jars, the LiquidBounce build and the module dumps only change with the configuration. Every run saves its
-      # state under a new key, so module dumps and newer downloads carry over; "refresh" starts from scratch.
+      # Jars, the LiquidBounce build and the module dumps. Every run saves its state under a new key. A changed
+      # configuration falls back to the latest state of any configuration: jars already there are kept, so adding an
+      # anticheat neither rebuilds LiquidBounce nor changes its checksum (which would re-measure all its pairs).
+      # "refresh" starts from scratch.
       - if: ${{ !inputs.refresh }}
         uses: actions/cache/restore@v4
         with:
           path: cache
           key: downloads-${{ hashFiles('benchmark.toml', 'config/**') }}-${{ github.run_id }}
-          restore-keys: downloads-${{ hashFiles('benchmark.toml', 'config/**') }}-
+          restore-keys: |
+            downloads-${{ hashFiles('benchmark.toml', 'config/**') }}-
+            downloads-
       - uses: actions/cache@v4
         with:
           path: work/launcher
