@@ -137,6 +137,8 @@ def trial_rows(unit_dir: Path, client_id: str, ac_id: str, grace_ticks: int, ign
 
     info = {
         "unattributed_flags": len(flags) - len(attributed),
+        # Should stay 0: the target bot is exempted from the anticheat (target_bypass_permissions).
+        "target_flags": sum(1 for e in events if e.get("type") == "flag" and e.get("player") in (ignore_players or set())),
         "joins": sum(1 for e in events if e.get("type") == "join"),
         "server_ready": next((e for e in events if e.get("type") == "server_ready"), None),
         "done": any(e.get("type") == "done" for e in events),
@@ -423,6 +425,7 @@ def compute_run(run_dir: Path) -> tuple[dict, list[dict]]:
             rows.extend(pair_rows)
             infos[f"{client_dir.name}/{ac_dir.name}"] = {
                 "unattributed_flags": sum(i["unattributed_flags"] for i in unit_infos),
+                "target_flags": sum(i["target_flags"] for i in unit_infos),
                 "joins": sum(i["joins"] for i in unit_infos),
                 "server_ready": unit_infos[0]["server_ready"],
                 "done": all(i["done"] for i in unit_infos),

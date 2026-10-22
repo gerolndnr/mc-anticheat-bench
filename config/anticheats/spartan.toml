@@ -2,6 +2,9 @@ id = "spartan"
 name = "Spartan"
 # Bukkit plugin name; the run is aborted if it is not enabled after server start.
 plugin = "Spartan"
+# The target bot only stands in as a target; the teleports pinning it drew speed-simulation flags. With spartan.bypass
+# Spartan neither prevents nor reports a detection (CheckRunner.canCancel), checked on every violation.
+target_bypass_permissions = ["spartan.bypass"]
 
 # Problems of Spartan 4.0.9.0 itself on Minecraft 26.3, found by reading its source and the runs; the report lists them
 # next to Spartan's numbers.

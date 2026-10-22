@@ -25,6 +25,8 @@ import org.bukkit.event.player.PlayerKickEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerVelocityEvent;
+import org.bukkit.permissions.PermissionAttachment;
+import org.bukkit.plugin.Plugin;
 import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
 
@@ -40,11 +42,16 @@ final class TrialRecorder implements Listener {
 
 	private final EventLog log;
 	private final Arenas arenas;
+	private final Plugin plugin;
+	/** The anticheat's bypass permissions, given to the target bot only. */
+	private final List<String> targetPermissions;
 	private final Map<UUID, Active> active = new HashMap<>();
 
-	TrialRecorder(EventLog log, Arenas arenas) {
+	TrialRecorder(EventLog log, Arenas arenas, Plugin plugin, List<String> targetPermissions) {
 		this.log = log;
 		this.arenas = arenas;
+		this.plugin = plugin;
+		this.targetPermissions = List.copyOf(targetPermissions);
 	}
 
 	private static final class Knockback {
@@ -278,6 +285,20 @@ final class TrialRecorder implements Listener {
 		Active a = active.get(event.getPlayer().getUniqueId());
 		if (a != null) a.deaths++;
 		log.write("death", Map.of("player", event.getPlayer().getName(), "trial", a == null ? "" : a.trial.id));
+	}
+
+	/**
+	 * Exempts the target bot from the anticheat: it is benchmark infrastructure, and the collector's teleports that pin
+	 * it in place would otherwise draw flags, setbacks and cancelled actions. Runs first on join because Intave resolves
+	 * its bypass once on join; Grim and Spartan read theirs later. Only the target bot is ever exempted.
+	 */
+	@EventHandler(priority = EventPriority.LOWEST)
+	public void onTargetJoin(PlayerJoinEvent event) {
+		Player player = event.getPlayer();
+		if (targetPermissions.isEmpty() || !arenas.isTargetPlayer(player)) return;
+		PermissionAttachment attachment = player.addAttachment(plugin);
+		for (String permission : targetPermissions) attachment.setPermission(permission, true);
+		log.write("target_exempt", Map.of("player", player.getName(), "permissions", targetPermissions));
 	}
 
 	@EventHandler(priority = EventPriority.MONITOR)

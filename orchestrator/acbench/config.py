@@ -64,6 +64,8 @@ class AntiCheat:
     dependencies: list[dict[str, Any]] = field(default_factory=list)
     # Verified problems of the anticheat itself (not of the benchmark), shown next to its results in the report.
     known_issues: list[str] = field(default_factory=list)
+    # Permissions that exempt the target bot (benchmark infrastructure) from the anticheat; never given to the test bot.
+    target_bypass_permissions: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -152,6 +154,7 @@ def load_anticheat(path: Path) -> AntiCheat:
         default_alert_aliases=dict(data.get("default_alert_aliases", {})),
         dependencies=list(data.get("dependencies", [])),
         known_issues=[str(i) for i in data.get("known_issues", [])],
+        target_bypass_permissions=[str(p) for p in data.get("target_bypass_permissions", [])],
     )
 
 
@@ -198,6 +201,8 @@ def load_benchmark(path: Path) -> Benchmark:
         scoring=data.get("scoring", {"detection": 0.5, "false_positives": 0.35, "mitigation": 0.15}),
         parallel=data.get("parallel", {}),
     )
+    if str(bench.client.get("target_username", "BenchTarget")).lower() == str(bench.client.get("username", "BenchBot")).lower():
+        raise ValueError(f"{path}: target_username must differ from username, the target bot is exempted from anticheats")
     cfg = bench.config_dir
     for client_id in bench.client_ids:
         bench.clients[client_id] = load_client(cfg / "clients" / f"{client_id}.toml")
