@@ -7,7 +7,7 @@ repetitions = 3
 grace_ticks = 40
 
 categories = ["movement", "combat"]
-clients = ["meteor"]
+clients = ["meteor", "liquidbounce", "wurst"]
 # "none" is mandatory: it measures the raw advantage of every cheat without any anticheat.
 anticheats = ["none", "grim", "intave", "spartan"]
 

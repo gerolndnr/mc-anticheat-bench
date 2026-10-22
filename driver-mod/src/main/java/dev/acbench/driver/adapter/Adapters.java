@@ -11,6 +11,7 @@ public final class Adapters {
 		return switch (id) {
 			case "meteor" -> new MeteorAdapter();
 			case "liquidbounce" -> new LiquidBounceAdapter();
+			case "wurst" -> new WurstAdapter();
 			case "command" -> new CommandAdapter(options);
 			case "none" -> new NoneAdapter();
 			default -> throw new IllegalArgumentException("Unknown adapter '" + id + "'");

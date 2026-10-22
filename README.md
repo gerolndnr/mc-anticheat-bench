@@ -1,7 +1,7 @@
 # acbench – AntiCheat-Benchmark für Minecraft
 
 Der Benchmark testet AntiCheat-Plugins mit **echten Hack-Clients**. Abgedeckt sind die Bereiche **Movement** und
-**Combat** mit den Clients **Meteor** und **LiquidBounce Nextgen** (inklusive seiner gezielten Grim-Bypass-Modi)
+**Combat** mit den Clients **Meteor**, **LiquidBounce Nextgen** (inklusive seiner gezielten Grim-Bypass-Modi) und **Wurst**
 gegen die AntiCheats **Grim**, **Intave** (freie Basisversion, ohne Cloud-Checks) und **Spartan** (freie Edition,
 erkennt bis 5 Spieler online; ein Shard hat 2).
 Weitere Clients, AntiCheats und Szenarien kommen per Konfigurationsdatei dazu.
@@ -163,7 +163,7 @@ der Lauf vom letzten Stand: Vorhandene Jars bleiben, nur neue werden geladen. `r
 **Unveränderte Paare werden nicht neu gemessen.** Jedes Client×AntiCheat-Paar bekommt einen Schlüssel über alles, was
 seine Messung bestimmt: den Trial-Plan (Szenarien, Varianten, Wiederholungen, Seed, Timing), die Prüfsummen der Jars
 von Paper, Client und AntiCheat, die Flag-Quellen und Config-Dateien des AntiCheats, die Server- und Client-Settings
-sowie den Quellcode von Driver-Mod, Collector und `processes.py`. Sauber gemessene Paare (fertig, nicht überlastet,
+sowie den Quellcode von Driver-Mod (davon nur der Adapter des eigenen Clients), Collector und `processes.py`. Sauber gemessene Paare (fertig, nicht überlastet,
 legales Spiel unbeeinträchtigt) legt `collect` im Pair-Store ab, einem eigenen Eintrag im Actions-Cache. Der nächste
 Lauf übernimmt Paare mit gleichem Schlüssel von dort, statt Shards für sie zu planen:
 
@@ -231,7 +231,9 @@ haben, plus Varianten, deren Name das AntiCheat nennt (gezielte Bypässe). Absch
      ```
    - Sonst schreibst du eine eigene Klasse in `driver-mod/src/main/java/dev/acbench/driver/adapter/`, die
      `CheatClientAdapter` implementiert (Reflection, damit die Mod ohne den Client baut), und registrierst sie in
-     `Adapters.java`. Vorhanden sind `MeteorAdapter` und `LiquidBounceAdapter`.
+     `Adapters.java`. Vorhanden sind `MeteorAdapter`, `LiquidBounceAdapter` und `WurstAdapter`. Benenne die Klasse
+     `<Adapter-ID>Adapter.java`: Der Pair-Store zählt für ein Paar nur den Adapter seines eigenen Clients, so misst ein
+     neuer Client die bestehenden Paare nicht neu.
 3. Füge den Client in `benchmark.toml` unter `clients` hinzu. Clients, die keine Fabric-Mods auf derselben
    Minecraft-Version sind, brauchen einen anderen Weg und werden von der Driver-Mod nicht abgedeckt.
 

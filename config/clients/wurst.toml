@@ -1,0 +1,85 @@
+# Wurst Client 7.56.1 for Minecraft 26.3. It has no direct jar download (Modrinth or GitHub releases), so it is built
+# from source at the commit of its official tag v7.56.1-MC26.3 (GPL-3).
+id = "wurst"
+name = "Wurst Client"
+adapter = "wurst"
+
+[download]
+git = "https://github.com/Wurst-Imperium/Wurst7.git"
+commit = "72d231c3df5f10222126056199eac240d2bce6bb"
+build = "./gradlew build -x test -x check --no-daemon --no-configuration-cache"
+artifact = "build/libs/Wurst-Client-*.jar"
+
+[[dependencies]]
+modrinth = "fabric-api"
+version = "0.160.5+26.3"
+
+# Hack and setting names are Wurst's own (case-insensitive). Sliders take numbers, checkboxes true/false and enum
+# settings the mode's display name. Every run writes all hacks and settings to results/<run>/wurst/<anticheat>/modules.json.
+
+# --- movement ---
+[cheats.fly]
+module = "Flight"
+# Default horizontal speed is 1 (20 blocks/s); the closet variant flies at sprint-like speed.
+variants.default = {}
+variants.closet = { "Horizontal speed" = "0.3", "Vertical speed" = "0.3" }
+
+[cheats.speed]
+module = "SpeedHack"
+variants.default = {}
+
+[cheats.step]
+module = "Step"
+auto_modes = "Mode"
+
+[cheats.nofall]
+module = "NoFall"
+variants.default = {}
+
+[cheats.timer]
+module = "Timer"
+variants.x1_2 = { Speed = "1.2" }
+variants.x2 = { Speed = "2" }
+
+[cheats.noslow]
+module = "NoSlowdown"
+variants.default = {}
+
+[cheats.jesus]
+module = "Jesus"
+variants.default = {}
+variants.ncp = { "NoCheat+ bypass" = "true" }
+
+[cheats.spider]
+module = "Spider"
+variants.default = {}
+
+# --- combat ---
+[cheats.killaura]
+module = "Killaura"
+variants.default = {}
+variants.closet = { Range = "3.0" }
+
+[cheats.reach]
+module = "Reach"
+# Range is the total reach; vanilla attacks reach 3 blocks.
+variants.plus05 = { Range = "3.5" }
+variants.plus1 = { Range = "4" }
+
+[cheats.velocity]
+module = "AntiKnockback"
+# Strength = how much knockback is removed: 1 = none left, 0 = normal knockback.
+variants.zero = { "Horizontal Strength" = "1", "Vertical Strength" = "1" }
+variants.half = { "Horizontal Strength" = "0.5", "Vertical Strength" = "0" }
+
+[cheats.criticals]
+module = "Criticals"
+auto_modes = "Mode"
+
+[cheats.autoclicker]
+# Wurst has no plain autoclicker; TriggerBot attacks whatever the crosshair is on without the player clicking.
+# Speed 0 = wait for the attack cooldown, otherwise attacks per second.
+module = "TriggerBot"
+variants.cooldown = { Speed = "0" }
+variants.cps10 = { Speed = "10" }
+variants.cps20 = { Speed = "20" }

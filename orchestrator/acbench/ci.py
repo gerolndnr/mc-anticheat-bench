@@ -63,7 +63,21 @@ def _file_hash(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
-def _code_hash(root: Path) -> str:
+_ADAPTER_DIR = "driver-mod/src/main/java/dev/acbench/driver/adapter/"
+# Adapters every pair uses: the interface, and NoneAdapter, which drives the target bot.
+_SHARED_ADAPTERS = {"CheatClientAdapter.java", "NoneAdapter.java"}
+
+
+def _counts_for(name: str, adapter: str) -> bool:
+    """Other clients' adapters and the registry that lists them do not change this client's measurement, so adding
+    a client keeps the keys of all existing pairs. A client's own adapter is <Adapter>Adapter.java by convention."""
+    if not name.startswith(_ADAPTER_DIR) or "/" in name[len(_ADAPTER_DIR):]:
+        return True
+    file = name[len(_ADAPTER_DIR):]
+    return file in _SHARED_ADAPTERS or file.lower() == f"{adapter.lower()}adapter.java"
+
+
+def _code_hash(root: Path, adapter: str) -> str:
     """Hash of the measurement sources rather than of the built jars, which Gradle does not build byte-identically.
     Only files under version control count, so build output never changes the key."""
     try:
@@ -75,7 +89,7 @@ def _code_hash(root: Path) -> str:
                        else (root / entry).rglob("*")) if p.is_file() and not _IGNORED_DIRS & set(p.relative_to(root).parts))
     digest = hashlib.sha256()
     for path in files:
-        if path.exists():
+        if path.exists() and _counts_for(path.relative_to(root).as_posix(), adapter):
             digest.update(str(path.relative_to(root)).encode() + b"\0" + path.read_bytes() + b"\0")
     return digest.hexdigest()
 
@@ -95,7 +109,7 @@ def pair_key(runner: Runner, client: Client, ac: AntiCheat, plan: dict) -> str:
                       "target_bypass_permissions": ac.target_bypass_permissions,
                       "files": {target: _file_hash(source) for target, source in sorted(ac.files.items())}},
         "jars": {jar.name: _file_hash(jar) for jar in [runner.paper_jar, *runner.client_jars[client.id], *runner.ac_jars[ac.id]]},
-        "code": _code_hash(bench.root),
+        "code": _code_hash(bench.root, client.adapter),
     }
     return hashlib.sha256(json.dumps(inputs, sort_keys=True, default=str).encode()).hexdigest()[:24]
 
