@@ -45,6 +45,12 @@ jobs:
       launcher-key: ${{ steps.keys.outputs.launcher }}
     steps:
       - uses: actions/checkout@v4
+      - id: image
+        run: echo "debs=debs-$ImageOS-$ImageVersion" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: debs
+          key: ${{ steps.image.outputs.debs }}
       - uses: ./.github/actions/setup-bench
       - uses: gradle/actions/setup-gradle@v4
       - id: keys
@@ -77,7 +83,7 @@ jobs:
       - name: Pack jars and builds for the shards
         run: |
           rm -rf cache/clients/*/src-*
-          tar czf bundle.tgz cache driver-mod/build/libs collector-plugin/build/libs
+          tar czf bundle.tgz cache driver-mod/build/libs collector-plugin/build/libs $(ls -d debs 2>/dev/null)
       - uses: actions/cache/save@v4
         with:
           path: cache
@@ -105,9 +111,6 @@ jobs:
         include: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-bench
-        with:
-          launcher-key: ${{ needs.prepare.outputs.launcher-key }}
       - uses: actions/download-artifact@v4
         with:
           name: bundle
@@ -115,6 +118,9 @@ jobs:
         with:
           name: plan-reference
       - run: tar xzf bundle.tgz && tar xzf plan-reference.tgz
+      - uses: ./.github/actions/setup-bench
+        with:
+          launcher-key: ${{ needs.prepare.outputs.launcher-key }}
       - run: |
           ./bench ci shard --run-id "$RUN_ID" --clients "${{ matrix.client }}" --anticheats "${{ matrix.anticheat }}" \
             --shard ${{ matrix.shard }} --of ${{ matrix.of }} \
@@ -180,9 +186,6 @@ jobs:
         include: ${{ fromJSON(needs.screen.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v4
-      - uses: ./.github/actions/setup-bench
-        with:
-          launcher-key: ${{ needs.prepare.outputs.launcher-key }}
       - uses: actions/download-artifact@v4
         with:
           name: bundle
@@ -190,6 +193,9 @@ jobs:
         with:
           name: plan-anticheats
       - run: tar xzf bundle.tgz && tar xzf plan-anticheats.tgz
+      - uses: ./.github/actions/setup-bench
+        with:
+          launcher-key: ${{ needs.prepare.outputs.launcher-key }}
       - run: |
           ./bench ci shard --run-id "$RUN_ID" --clients "${{ matrix.client }}" --anticheats "${{ matrix.anticheat }}" \
             --shard ${{ matrix.shard }} --of ${{ matrix.of }} \
