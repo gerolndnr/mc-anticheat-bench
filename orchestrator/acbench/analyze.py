@@ -441,6 +441,12 @@ def compute_run(run_dir: Path) -> tuple[dict, list[dict]]:
     result = aggregate(rows, meta.get("scoring", DEFAULT_SCORING))
     result["meta"] = meta
     result["runs"] = infos
+    known = {}
+    for saved in sorted(run_dir.glob("*/*/anticheat.json")):
+        issues = json.loads(saved.read_text()).get("known_issues")
+        if issues:
+            known[saved.parent.name] = issues
+    result["known_issues"] = known
     return result, rows
 
 

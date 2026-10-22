@@ -250,6 +250,8 @@ Lege `config/anticheats/<id>.toml` an. Darin stehen:
   - ein Konsolen-Regex mit den benannten Gruppen `player`, `check` und optional `vl`, oder
   - `type = "event"` mit `plugin`, `class` und Getter-Ketten wie `player = "getPlayer.getName"`
 - optional `[files]` mit Konfigurationen, die vor dem Serverstart kopiert werden
+- optional `known_issues = ["…"]`: nachgewiesene Probleme des AntiCheats selbst (nicht des Benchmarks) auf der
+  getesteten Version. Der Report führt sie neben den Zahlen auf; sie ändern nichts an der Messung.
 - optional `[[default_alerts]]` (`group`, `checks`, `alert_after`) und `[default_alert_aliases]`: die
   Alarmschwellen der Standard-Konfiguration. Daraus berechnet die Auswertung „Default alert“. Ein Check gehört zu einer
   Gruppe, wenn sein Name einen Gruppeneintrag enthält (wie bei Grim). Standardmäßig zählt jeder Verstoß als 1; mit

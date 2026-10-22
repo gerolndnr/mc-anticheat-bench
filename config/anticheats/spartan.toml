@@ -3,6 +3,14 @@ name = "Spartan"
 # Bukkit plugin name; the run is aborted if it is not enabled after server start.
 plugin = "Spartan"
 
+# Problems of Spartan 4.0.9.0 itself on Minecraft 26.3, found by reading its source and the runs; the report lists them
+# next to Spartan's numbers.
+known_issues = [
+    "Knockback is unknown to it: with ProtocolLib, Spartan takes velocity only from the entity-velocity packet and expects four integer fields there, which the packet no longer has since Minecraft 1.21.9, and it ignores the Bukkit velocity event in packet mode. Legal knockback is flagged by gravity-simulation (velocity baselines).",
+    "Legal sprint-jumping is often flagged by speed-simulation on every jump (speed and timer baselines).",
+    "ProtocolLib rejects its swing (ARM_ANIMATION) listener on 26.3, so swing-based combat checks receive no data.",
+]
+
 # Free edition from Modrinth (GPL-3). It detects as long as at most 5 players are online; a shard has 2.
 [download]
 modrinth = "spartan-anticheat"
@@ -10,7 +18,8 @@ loader = "paper"
 file_regex = '^Spartan\.jar$'
 version = "4.0.9.0"
 
-# Without ProtocolLib Spartan only checks Bukkit events; with it, it runs its packet-based checks.
+# With ProtocolLib Spartan runs its packet-based checks. Without it (Bukkit events only) it flagged every legal jump
+# on 26.3 (52-62 % false positives in a comparison run), so the benchmark uses packet mode.
 # For 26.x only the rolling dev build works; it is cached and pinned per run like every other jar.
 [[dependencies]]
 url = "https://github.com/dmulloy2/ProtocolLib/releases/download/dev-build/ProtocolLib.jar"

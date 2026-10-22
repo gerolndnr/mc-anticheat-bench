@@ -62,6 +62,8 @@ class AntiCheat:
     default_alert_aliases: dict[str, str]
     # Further plugins the anticheat needs on the server, e.g. ProtocolLib: [{modrinth, version, ...} or {url, filename}].
     dependencies: list[dict[str, Any]] = field(default_factory=list)
+    # Verified problems of the anticheat itself (not of the benchmark), shown next to its results in the report.
+    known_issues: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -149,6 +151,7 @@ def load_anticheat(path: Path) -> AntiCheat:
         default_alerts=list(data.get("default_alerts", [])),
         default_alert_aliases=dict(data.get("default_alert_aliases", {})),
         dependencies=list(data.get("dependencies", [])),
+        known_issues=[str(i) for i in data.get("known_issues", [])],
     )
 
 

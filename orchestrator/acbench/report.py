@@ -39,6 +39,12 @@ def markdown(result: dict) -> str:
                    f"{_pct(a['false_positive_rate'])} | {_pct(a['mitigation'])} | {_num(a['median_time_to_flag_s'], 1)} s | "
                    f"{s['valid_variants']} (+{s['invalid_variants']} without effect) |")
     out.append("")
+    if result.get("known_issues"):
+        out += ["**Known anticheat issues** (verified problems of the anticheat itself on this version; they show up in "
+                "its numbers):", ""]
+        for ac, issues in result["known_issues"].items():
+            out += [f"- **{ac}**: {issue}" for issue in issues]
+        out.append("")
     for s in result["summaries"]:
         cats = [c for c in s if isinstance(s[c], dict) and c != "all"]
         if cats:
@@ -158,6 +164,12 @@ def html_report(result: dict) -> str:
                  f"(weights {e(', '.join(f'{k} {v}' for k, v in weights.items()))}). Only cheat variants with a measurable advantage "
                  f"in the reference run without anticheat count, plus targeted bypasses that only gain an advantage with the anticheat "
                  f"installed.</p>")
+    if result.get("known_issues"):
+        parts.append("<h3>Known anticheat issues</h3><p class='legend'>Verified problems of the anticheat itself on this "
+                     "version; they show up in its numbers.</p><ul>")
+        for ac, issues in result["known_issues"].items():
+            parts += [f"<li><b>{e(ac)}</b>: {e(issue)}</li>" for issue in issues]
+        parts.append("</ul>")
 
     acs = [a for a in _ac_names(result) if a != "none"]
     for client in sorted({v["client"] for v in result["variants"]}):

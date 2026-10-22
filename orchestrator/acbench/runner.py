@@ -266,7 +266,7 @@ class Runner:
         out.mkdir(parents=True, exist_ok=True)
         (out / "anticheat.json").write_text(json.dumps({
             "id": ac.id, "name": ac.name, "default_alerts": ac.default_alerts,
-            "default_alert_aliases": ac.default_alert_aliases,
+            "default_alert_aliases": ac.default_alert_aliases, "known_issues": ac.known_issues,
         }, indent=1))
         full_plan = build_plan(self.bench, client, self.run_id, trials, {
             "progress": str((out / "progress.json").resolve()),
