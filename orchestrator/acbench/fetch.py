@@ -108,6 +108,14 @@ def anticheat(bench: Benchmark, ac: AntiCheat, cache: Path, force: bool = False)
     elif "url" in dl:
         name = dl.get("filename", Path(urllib.parse.urlparse(dl["url"]).path).name)
         jars.append(_download(dl["url"], cache / "anticheats" / ac.id / name, force))
+    for dep in ac.dependencies:
+        deps_dir = cache / "anticheats" / ac.id / "deps"
+        if "modrinth" in dep:
+            jars.append(modrinth(dep["modrinth"], dep.get("loader", "paper"), bench.minecraft, deps_dir,
+                                 dep.get("version"), dep.get("file_regex", r".*\.jar$"), force))
+        else:
+            name = dep.get("filename", Path(urllib.parse.urlparse(dep["url"]).path).name)
+            jars.append(_download(dep["url"], deps_dir / name, force))
     for jar in jars:
         if not jar.exists():
             raise FileNotFoundError(f"anticheat {ac.id}: jar {jar} not found")

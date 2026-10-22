@@ -1,0 +1,99 @@
+id = "intave"
+name = "Intave"
+# Bukkit plugin name; the run is aborted if it is not enabled after server start.
+plugin = "Intave"
+
+# Free, source-available base version (no cloud token, so no cloud machine-learning checks).
+[download]
+modrinth = "intave"
+loader = "paper"
+file_regex = '^Intave\.jar$'
+version = "14.9.7-b1"
+
+# Intave needs ProtocolLib and would otherwise download it itself on every server start. For 26.x only the rolling
+# dev build works (the URL Intave uses); it is cached in cache/ and pinned per run like every other jar.
+[[dependencies]]
+url = "https://github.com/dmulloy2/ProtocolLib/releases/download/dev-build/ProtocolLib.jar"
+filename = "ProtocolLib.jar"
+
+# Intave writes violations only to its own log file, not to the console, so they come from its API event.
+# The event carries the level after the violation; Intave weights violations, so this is not a plain count.
+[[flag_sources]]
+type = "event"
+plugin = "Intave"
+class = "de.jpx3.intave.access.check.event.IntaveViolationEvent"
+player = "player.getName"
+check = "checkName"
+vl = "violationLevelAfterViolation"
+
+# The benchmark config keeps Intave's stock checks and mitigation but replaces kicks and bans by a notify.
+[files]
+"plugins/Intave/config.yml" = "intave/config.yml"
+
+# Stock staff alerts of Intave 14.9.7 (advanced.yml): the first "sendnotify" threshold of each check, in violation
+# level. Placement analysis has no notify, only a ban at 200.
+[[default_alerts]]
+group = "Physics"
+checks = ["physics"]
+alert_after = 100
+by = "vl"
+
+[[default_alerts]]
+group = "Timer"
+checks = ["timer"]
+alert_after = 50
+by = "vl"
+
+[[default_alerts]]
+group = "Heuristics"
+checks = ["heuristics"]
+alert_after = 20
+by = "vl"
+
+[[default_alerts]]
+group = "AttackRaytrace"
+checks = ["attackraytrace"]
+alert_after = 50
+by = "vl"
+
+[[default_alerts]]
+group = "InteractionRaytrace"
+checks = ["interactionraytrace"]
+alert_after = 50
+by = "vl"
+
+[[default_alerts]]
+group = "ClickPatterns"
+checks = ["clickpatterns"]
+alert_after = 50
+by = "vl"
+
+[[default_alerts]]
+group = "ClickSpeedLimiter"
+checks = ["clickspeedlimiter"]
+alert_after = 50
+by = "vl"
+
+[[default_alerts]]
+group = "BreakSpeedLimiter"
+checks = ["breakspeedlimiter"]
+alert_after = 100
+by = "vl"
+
+[[default_alerts]]
+group = "ProtocolScanner"
+checks = ["protocolscanner"]
+alert_after = 50
+by = "vl"
+
+[[default_alerts]]
+group = "InventoryClickAnalysis"
+checks = ["inventoryclickanalysis"]
+alert_after = 50
+by = "vl"
+
+[[default_alerts]]
+group = "PlacementAnalysis"
+checks = ["placementanalysis"]
+alert_after = 200
+by = "vl"

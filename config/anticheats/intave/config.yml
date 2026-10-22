@@ -1,0 +1,22 @@
+# Benchmark profile for Intave 14.9.7: the stock config.yml, except that kicks and bans only notify and a kicked bot
+# may rejoin at once. Checks, thresholds and movement mitigation stay at their defaults.
+config: THIS
+
+prefix: "&8[&c&lIntave&8]&7 "
+
+kick-commands:
+  - "intave internals sendnotify &c{player}&7 would have been kicked (acbench)"
+
+ban-commands:
+  - "intave internals sendnotify &c{player}&7 would have been banned (acbench)"
+
+cloud-token: "ct_EXAMPLE-TOKEN"
+
+physics-mm: BARELY
+
+rejoin-delay: 0
+
+privacy: BEST_DETECTION
+
+verbose: "{prefix} &c{player}&7/{trust-color}&7 {message} {details} (+{vladded} -> {vl})"
+notify: "{prefix} &c&lInfo&8: &7{text}"

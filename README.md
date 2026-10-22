@@ -1,7 +1,8 @@
 # acbench – AntiCheat-Benchmark für Minecraft
 
 Der Benchmark testet AntiCheat-Plugins mit **echten Hack-Clients**. Abgedeckt sind die Bereiche **Movement** und
-**Combat** mit den Clients **Meteor** und **LiquidBounce Nextgen** (inklusive seiner gezielten Grim-Bypass-Modi).
+**Combat** mit den Clients **Meteor** und **LiquidBounce Nextgen** (inklusive seiner gezielten Grim-Bypass-Modi)
+gegen die AntiCheats **Grim** und **Intave** (freie Basisversion, ohne Cloud-Checks).
 Weitere Clients, AntiCheats und Szenarien kommen per Konfigurationsdatei dazu.
 
 ## Architektur
@@ -93,7 +94,7 @@ Verfügbare Metriken pro Trial: `forward_distance`, `forward_speed`, `max_forwar
 export JAVA_HOME=/pfad/zu/jdk-25               # für den Build (Gradle-Wrapper)
 export ACBENCH_JAVA=$JAVA_HOME/bin/java        # Java für den Server
 ./bench build                                  # baut driver-mod und collector-plugin
-./bench fetch                                  # lädt Paper, Meteor und Grim nach cache/
+./bench fetch                                  # lädt Paper, Clients und AntiCheats nach cache/
 ./bench plan                                   # zeigt die Trials
 ./bench run                                    # kompletter Lauf laut benchmark.toml
 ./bench run --anticheats none,grim --scenarios fly,reach --reps 1   # schneller Teillauf
@@ -227,16 +228,19 @@ Lege `config/anticheats/<id>.toml` an. Darin stehen:
   zu erzeugen.
 - Download über `modrinth` (optional mit `version = "…"` zum Pinnen), `url` oder lokale `jars = ["pfad.jar"]`
   (für kostenpflichtige Plugins)
+- optional `[[dependencies]]`: weitere Plugins, die der AntiCheat braucht, über `modrinth` oder `url` + `filename`
+  (Intave braucht z. B. ProtocolLib)
 - mindestens eine `flag_sources`-Quelle, entweder
   - ein Konsolen-Regex mit den benannten Gruppen `player`, `check` und optional `vl`, oder
   - `type = "event"` mit `plugin`, `class` und Getter-Ketten wie `player = "getPlayer.getName"`
 - optional `[files]` mit Konfigurationen, die vor dem Serverstart kopiert werden
 - optional `[[default_alerts]]` (`group`, `checks`, `alert_after`) und `[default_alert_aliases]`: die
   Alarmschwellen der Standard-Konfiguration. Daraus berechnet die Auswertung „Default alert“. Ein Check gehört zu einer
-  Gruppe, wenn sein Name einen Gruppeneintrag enthält (wie bei Grim).
+  Gruppe, wenn sein Name einen Gruppeneintrag enthält (wie bei Grim). Standardmäßig zählt jeder Verstoß als 1; mit
+  `by = "vl"` gilt stattdessen das gemeldete Violation-Level, für AntiCheats, die Verstöße gewichten (wie Intave)
 
 Wichtig: Für die Detection-Messung sollte der AntiCheat bei **jedem** Verstoß alarmieren und nicht kicken oder
-bannen. Ein Beispiel dafür ist `config/anticheats/grim/punishments.yml`.
+bannen. Beispiele dafür sind `config/anticheats/grim/punishments.yml` und `config/anticheats/intave/config.yml`.
 
 ### Neues Szenario
 

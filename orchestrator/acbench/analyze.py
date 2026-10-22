@@ -46,8 +46,16 @@ def default_alert_tick(flags: list[dict], rules: dict) -> int | None:
         names = (check, aliases.get(check, check))
         for group in rules["default_alerts"]:
             if any(entry.lower() in name for entry in group["checks"] for name in names):
-                counts[group["group"]] += 1
-                if counts[group["group"]] >= int(group["alert_after"]):
+                if group.get("by") == "vl":
+                    # Anticheats that weight violations (e.g. Intave) alert once the reported level reaches the threshold.
+                    try:
+                        reached = float(flag.get("vl")) >= float(group["alert_after"])
+                    except (TypeError, ValueError):
+                        reached = False
+                else:
+                    counts[group["group"]] += 1
+                    reached = counts[group["group"]] >= int(group["alert_after"])
+                if reached:
                     return flag["tick"]
     return None
 

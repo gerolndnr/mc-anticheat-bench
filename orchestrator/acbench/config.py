@@ -60,6 +60,8 @@ class AntiCheat:
     # Stock alert thresholds: [{group, checks, alert_after}] plus name aliases, for "would alert by default".
     default_alerts: list[dict[str, Any]]
     default_alert_aliases: dict[str, str]
+    # Further plugins the anticheat needs on the server, e.g. ProtocolLib: [{modrinth, version, ...} or {url, filename}].
+    dependencies: list[dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -146,6 +148,7 @@ def load_anticheat(path: Path) -> AntiCheat:
         plugin=data.get("plugin"),
         default_alerts=list(data.get("default_alerts", [])),
         default_alert_aliases=dict(data.get("default_alert_aliases", {})),
+        dependencies=list(data.get("dependencies", [])),
     )
 
 

@@ -38,6 +38,10 @@ runs:
           exit 0
         fi
         echo "Downloading:$missing"
+        # The runner's azure mirror stalled for 5-10 min in earlier runs before apt fell back to the main archive,
+        # which then delivered within seconds; use the main archive directly.
+        sudo sed -i 's#mirror+file:/etc/apt/apt-mirrors.txt#http://archive.ubuntu.com/ubuntu/#g' \
+          /etc/apt/sources.list.d/*.sources 2> /dev/null || true
         sudo rm -f /var/lib/man-db/auto-update
         sudo apt-get update -q -o DPkg::Lock::Timeout=120
         mkdir -p debs/partial

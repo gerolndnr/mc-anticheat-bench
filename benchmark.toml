@@ -9,7 +9,7 @@ grace_ticks = 40
 categories = ["movement", "combat"]
 clients = ["meteor"]
 # "none" is mandatory: it measures the raw advantage of every cheat without any anticheat.
-anticheats = ["none", "grim"]
+anticheats = ["none", "grim", "intave"]
 
 [server]
 paper_build = "latest"    # or a build number, e.g. 207
