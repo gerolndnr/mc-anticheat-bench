@@ -21,34 +21,43 @@ runs:
       run: pip install --quiet portablemc==5.0.6
     - if: inputs.clients == 'true'
       shell: bash
-      # Ubuntu mirrors sometimes stall for ~10 min on a single runner, so prepare downloads the missing packages
-      # once into debs/ (cached and shipped in the bundle) and the shard jobs install them from there.
+      # The runner's azure Ubuntu mirror sometimes stalls for 5-10 min on a single runner, so prepare downloads the
+      # missing packages once into debs/ (cached per runner image, shipped in the bundle) and the shard jobs install
+      # them with dpkg: apt would prefer the repository copy of the same version and download it again.
       run: |
-        missing=""
-        for pkg in xvfb xauth mesa-vulkan-drivers libgl1-mesa-dri libegl1 libegl-mesa0; do
-          dpkg -s "$pkg" > /dev/null 2>&1 || missing="$missing $pkg"
-        done
-        if [ -z "$missing" ]; then
+        pkgs="xvfb xauth mesa-vulkan-drivers libgl1-mesa-dri libegl1 libegl-mesa0"
+        missing() { for pkg in $pkgs; do dpkg -s "$pkg" > /dev/null 2>&1 || printf ' %s' "$pkg"; done; }
+        if [ -z "$(missing)" ]; then
           echo "Xvfb and Mesa are already installed"
           exit 0
         fi
-        apt_opts=(-y -q --no-install-recommends -o DPkg::Lock::Timeout=120)
-        if ls debs/*.deb > /dev/null 2>&1 && sudo apt-get install "${apt_opts[@]}" ./debs/*.deb; then
-          echo "Installed$missing from debs/"
-          exit 0
-        fi
-        echo "Downloading:$missing"
-        # The runner's azure mirror stalled for 5-10 min in earlier runs before apt fell back to the main archive,
-        # which then delivered within seconds; use the main archive directly.
-        sudo sed -i 's#mirror+file:/etc/apt/apt-mirrors.txt#http://archive.ubuntu.com/ubuntu/#g' \
-          /etc/apt/sources.list.d/*.sources 2> /dev/null || true
         sudo rm -f /var/lib/man-db/auto-update
+        if ls debs/*.deb > /dev/null 2>&1; then
+          # Only packages this image lacks; an installed one may be newer and must not be downgraded.
+          local_debs=()
+          for deb in debs/*.deb; do
+            dpkg -s "$(dpkg-deb -f "$deb" Package)" > /dev/null 2>&1 || local_debs+=("$deb")
+          done
+          echo "Installing from debs/: ${local_debs[*]}"
+          [ ${#local_debs[@]} -eq 0 ] || sudo dpkg -i "${local_debs[@]}" || true
+          if [ -z "$(missing)" ]; then
+            exit 0
+          fi
+          echo "Still missing:$(missing), falling back to apt"
+        fi
+        # Fallback and prepare: download from the main archive, which delivered within seconds whenever azure stalled.
+        grep -rl "mirror+file:/etc/apt/apt-mirrors.txt" /etc/apt/sources.list /etc/apt/sources.list.d 2> /dev/null \
+          | xargs -r sudo sed -i 's#mirror+file:/etc/apt/apt-mirrors.txt#http://archive.ubuntu.com/ubuntu/#g'
+        apt_opts=(-y -q --no-install-recommends -o DPkg::Lock::Timeout=120)
         sudo apt-get update -q -o DPkg::Lock::Timeout=120
+        sudo apt-get install "${apt_opts[@]}" -f
+        todo="$(missing)"
         mkdir -p debs/partial
-        sudo apt-get install "${apt_opts[@]}" --download-only -o Dir::Cache::archives="$PWD/debs" $missing
+        sudo apt-get install "${apt_opts[@]}" --download-only -o Dir::Cache::archives="$PWD/debs" $todo
         sudo rm -rf debs/partial debs/lock
         sudo chown -R "$(id -u):$(id -g)" debs
-        sudo apt-get install "${apt_opts[@]}" ./debs/*.deb
+        # Same archive directory, so apt installs what it just downloaded instead of fetching it again.
+        sudo apt-get install "${apt_opts[@]}" -o Dir::Cache::archives="$PWD/debs" $todo
     - if: inputs.clients == 'true' && inputs.launcher-key != ''
       uses: actions/cache/restore@v4
       with:
