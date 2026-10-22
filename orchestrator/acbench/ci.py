@@ -7,17 +7,25 @@ spread over the available machines so that all of them finish at about the same 
 
 Hand-over between machines happens through tarballs of results/<run>/: `matrix` packs the pair plans and run.json,
 `shard` packs its shard folder, `collect` unpacks everything, merges the shard status into run.json and analyzes.
+
+Pairs whose inputs did not change are not measured again. Every pair gets a key over everything that decides its
+measurement (see pair_key); `collect` keeps the raw data of every cleanly measured pair in a store (the Actions cache
+in CI), and `matrix` takes a pair with a known key from there instead of planning shards for it. A reused reference
+also keeps the screening: the anticheat stage reads it just like a freshly measured one.
 """
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import json
+import shutil
+import subprocess
 import tarfile
 import time
 from pathlib import Path
 
 from .analyze import REFERENCE_AC, analyze_run
-from .config import Benchmark
+from .config import AntiCheat, Benchmark, Client
 from .plan import build_trials, estimate_seconds, module_dump_file
 from .report import write_reports
 from .runner import Job, LiveStatus, Runner, _screen, discover
@@ -44,14 +52,94 @@ def _pack(tar_file: Path, root: Path, paths: list[Path]) -> None:
             tar.add(path, arcname=str(path.relative_to(root)))
 
 
+# Plan fields that differ between runs without changing what is measured.
+_RUN_SPECIFIC = ("run_id", "progress_file", "client_log", "modules_dump", "server_address")
+# Sources whose changes alter the measurement itself: driver mod, collector plugin and the process setup.
+_MEASUREMENT_CODE = ("driver-mod", "collector-plugin", "orchestrator/acbench/processes.py")
+_IGNORED_DIRS = {"build", ".gradle", "run"}
+
+
+def _file_hash(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def _code_hash(root: Path) -> str:
+    """Hash of the measurement sources rather than of the built jars, which Gradle does not build byte-identically.
+    Only files under version control count, so build output never changes the key."""
+    try:
+        listed = subprocess.run(["git", "ls-files", "-z", "--", *_MEASUREMENT_CODE], cwd=root, check=True,
+                                capture_output=True).stdout.decode().split("\0")
+        files = sorted(root / name for name in listed if name)
+    except (OSError, subprocess.CalledProcessError):
+        files = sorted(p for entry in _MEASUREMENT_CODE for p in ([root / entry] if (root / entry).is_file()
+                       else (root / entry).rglob("*")) if p.is_file() and not _IGNORED_DIRS & set(p.relative_to(root).parts))
+    digest = hashlib.sha256()
+    for path in files:
+        if path.exists():
+            digest.update(str(path.relative_to(root)).encode() + b"\0" + path.read_bytes() + b"\0")
+    return digest.hexdigest()
+
+
+def pair_key(runner: Runner, client: Client, ac: AntiCheat, plan: dict) -> str:
+    """Everything that decides one pair's measurement: the trial list and timing (the plan without run-specific
+    paths), the exact jars of server, client and anticheat, the anticheat's flag sources and config files, the server
+    and client settings and the measurement code. Analysis-only settings (scoring, default alerts) are left out, so
+    changing them re-analyzes instead of re-measuring."""
+    bench = runner.bench
+    inputs = {
+        "plan": {k: v for k, v in plan.items() if k not in _RUN_SPECIFIC},
+        "minecraft": bench.minecraft, "server": bench.server, "client_settings": bench.client,
+        "client": {"jvm_args": client.jvm_args, "adapter": client.adapter, "adapter_options": client.adapter_options,
+                   "always_disable": client.always_disable},
+        "anticheat": {"plugin": ac.plugin, "flag_sources": ac.flag_sources,
+                      "files": {target: _file_hash(source) for target, source in sorted(ac.files.items())}},
+        "jars": {jar.name: _file_hash(jar) for jar in [runner.paper_jar, *runner.client_jars[client.id], *runner.ac_jars[ac.id]]},
+        "code": _code_hash(bench.root),
+    }
+    return hashlib.sha256(json.dumps(inputs, sort_keys=True, default=str).encode()).hexdigest()[:24]
+
+
+class PairStore:
+    """Raw data of measured pairs by key: <store>/<client>/<anticheat>/<key>.tgz plus a .json with its origin."""
+
+    def __init__(self, root: Path):
+        self.root = root
+
+    def _base(self, client_id: str, ac_id: str, key: str) -> Path:
+        return self.root / client_id / ac_id / key
+
+    def get(self, client_id: str, ac_id: str, key: str) -> tuple[Path, dict] | None:
+        base = self._base(client_id, ac_id, key)
+        tar_file, info = base.with_suffix(".tgz"), base.with_suffix(".json")
+        if not tar_file.exists():
+            return None
+        return tar_file, json.loads(info.read_text()) if info.exists() else {}
+
+    def put(self, run_dir: Path, client_id: str, ac_id: str, key: str, info: dict) -> None:
+        base = self._base(client_id, ac_id, key)
+        base.parent.mkdir(parents=True, exist_ok=True)
+        _pack(base.with_suffix(".tgz"), run_dir, [run_dir / client_id / ac_id])
+        base.with_suffix(".json").write_text(json.dumps({**info, "stored": time.time()}, indent=1))
+
+    def prune(self, keep: int = 2) -> None:
+        """Keeps the newest `keep` keys per pair: older ones belong to client or anticheat versions no longer tested."""
+        for pair_dir in self.root.glob("*/*"):
+            infos = sorted(pair_dir.glob("*.json"), key=lambda p: json.loads(p.read_text()).get("stored", 0), reverse=True)
+            for info in infos[keep:]:
+                info.unlink()
+                info.with_suffix(".tgz").unlink(missing_ok=True)
+
+
 def _restrict(bench: Benchmark, client_id: str) -> Benchmark:
     return dataclasses.replace(bench, client_ids=[client_id], clients={client_id: bench.clients[client_id]},
                                anticheats=dict(bench.anticheats), anticheat_ids=list(bench.anticheat_ids))
 
 
 def matrix(bench: Benchmark, run_id: str, stage: str, artifacts: dict[str, Path], scenario_filter: set[str] | None,
-           slots: int | None, tar_file: Path, install: bool = False, discover_missing: bool = False) -> list[dict]:
+           slots: int | None, tar_file: Path, install: bool = False, discover_missing: bool = False,
+           store: PairStore | None = None) -> list[dict]:
     """Writes the plans of one stage's pairs, packs them with run.json into `tar_file` and returns the job matrix.
+    Pairs found in `store` come along with their data instead of getting shards.
     The anticheat stage expects the reference shards of the same run to be unpacked into results/<run>/ already."""
     if discover_missing:
         # Variants generated from a client's module dump (auto_modes) only exist once the dump does.
@@ -60,7 +148,10 @@ def matrix(bench: Benchmark, run_id: str, stage: str, artifacts: dict[str, Path]
                 print(f"[ci] {client_id}: no module dump yet, discovering")
                 discover(_restrict(bench, client_id), artifacts)
     runner = Runner(bench, run_id, scenario_filter, artifacts, 1)
+    meta_file = runner.run_dir / "run.json"
+    earlier = json.loads(meta_file.read_text()) if meta_file.exists() else {}
     runner.prepare(install=install)
+    keys, reused = dict(earlier.get("pair_keys", {})), dict(earlier.get("reused", {}))
     reference = bench.anticheats.get(REFERENCE_AC)
     if stage == "reference":
         acs = [reference] if reference else []
@@ -74,9 +165,25 @@ def matrix(bench: Benchmark, run_id: str, stage: str, artifacts: dict[str, Path]
             if ac is not reference and reference and bench.timing.get("screen_variants", True):
                 trials = _screen(runner.run_dir, client.id, ac.id, trials)
             out = runner.write_pair(client, ac, trials)
-            written += [out / "plan.json", out / "anticheat.json"]
             plan = json.loads((out / "plan.json").read_text())
+            pair = f"{client.id}/{ac.id}"
+            keys[pair] = pair_key(runner, client, ac, plan)
+            found = store.get(client.id, ac.id, keys[pair]) if store else None
+            if found:
+                tar_file_found, info = found
+                shutil.rmtree(out)
+                with tarfile.open(tar_file_found) as tar:
+                    tar.extractall(runner.run_dir, filter="data")
+                # Plan and default alert thresholds of this run; the raw data is identical by construction of the key.
+                runner.write_pair(client, ac, trials)
+                reused[pair] = {"key": keys[pair], "run": info.get("run")}
+                written.append(out)
+                print(f"[ci] {pair}: unchanged since {info.get('run')}, reusing its {len(trials)} trials")
+                continue
+            written += [out / "plan.json", out / "anticheat.json"]
             pairs[(client.id, ac.id)] = (len(trials), estimate_seconds(plan))
+    runner.meta.update(pair_keys=keys, reused=reused)
+    runner.save_meta()
     _pack(tar_file, bench.root, written)
 
     slots = slots or int(bench.parallel.get("ci_slots", 20))
@@ -114,25 +221,46 @@ def shard(bench: Benchmark, run_id: str, artifacts: dict[str, Path], k: int, of:
     return bool(status["finished"])
 
 
-def collect(run_dir: Path, tar_files: list[Path]) -> bool:
+def collect(run_dir: Path, tar_files: list[Path], store: PairStore | None = None) -> bool:
     """Unpacks plan and shard tarballs (plans first: the anticheat stage's run.json supersedes the reference one),
-    merges every shard's status into run.json and writes the reports. Returns whether every shard finished."""
+    merges every shard's status into run.json, writes the reports and keeps every freshly and cleanly measured pair in
+    `store`. Returns whether every shard finished."""
     root = run_dir.parent.parent
-    for tar_file in sorted(tar_files, key=lambda p: (not p.name.startswith("plan-reference"),
-                                                     not p.name.startswith("plan-"), p.name)):
+    meta_file = run_dir / "run.json"
+    pair_keys, reused = {}, {}
+    for tar_file in sorted(tar_files, key=lambda p: ("plan-reference" not in p.name, "plan-" not in p.name, p.name)):
         with tarfile.open(tar_file) as tar:
             tar.extractall(root, filter="data")
-    meta = json.loads((run_dir / "run.json").read_text())
+        # Each stage's run.json knows its own pairs; keep them all, whatever order the tarballs come in.
+        if meta_file.exists():
+            stage_meta = json.loads(meta_file.read_text())
+            pair_keys.update(stage_meta.get("pair_keys", {}))
+            reused.update(stage_meta.get("reused", {}))
+    meta = json.loads(meta_file.read_text())
+    meta.update(pair_keys=pair_keys, reused=reused)
     meta["status"] = {}
     shard_dirs = sorted(run_dir.glob("*/*/shards/s*"))
     for unit in shard_dirs:
         status_file = unit / "status.json"
         status = json.loads(status_file.read_text()) if status_file.exists() else {"finished": False, "error": "no status"}
         meta["status"].setdefault(f"{unit.parent.parent.parent.name}/{unit.parent.parent.name}", {})[unit.name] = status
-    meta["workers"] = len(shard_dirs)
+    reused = meta.get("reused", {})
+    meta["workers"] = sum(1 for unit in shard_dirs if f"{unit.parent.parent.parent.name}/{unit.parent.parent.name}" not in reused)
     meta["finished"] = time.strftime("%Y-%m-%d %H:%M:%S")
     (run_dir / "run.json").write_text(json.dumps(meta, indent=2))
     result = analyze_run(run_dir)
     md, page = write_reports(result, run_dir)
-    print(f"[ci] {len(shard_dirs)} shard(s) collected; report: {md} / {page}")
+    print(f"[ci] {len(shard_dirs)} shard(s) collected, {len(reused)} pair(s) reused; report: {md} / {page}")
+    if store:
+        for pair, key in meta.get("pair_keys", {}).items():
+            info = result["runs"].get(pair) or {}
+            # Only clean measurements are worth repeating forever: finished, not overloaded, legal play unimpaired.
+            clean = (info.get("done") and not (info.get("quality") or {}).get("overloaded")
+                     and not (info.get("legal_play") or {}).get("invalid"))
+            if pair in reused or not clean:
+                continue
+            client_id, ac_id = pair.split("/", 1)
+            store.put(run_dir, client_id, ac_id, key, {"run": meta.get("run_id", run_dir.name)})
+            print(f"[ci] {pair}: stored as {key}")
+        store.prune()
     return all(s.get("finished") for pair in meta["status"].values() for s in pair.values())

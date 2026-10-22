@@ -431,6 +431,8 @@ def compute_run(run_dir: Path) -> tuple[dict, list[dict]]:
                 "quality": measurement_quality(pair_rows),
                 "shard_quality": {u.name: measurement_quality([r for r in pair_rows if r["unit"] == u.name])
                                   for u in units} if units != [ac_dir] else {},
+                # CI runs take pairs whose inputs did not change from an earlier run (see ci.py).
+                "reused_from": (meta.get("reused", {}).get(f"{client_dir.name}/{ac_dir.name}") or {}).get("run"),
             }
     for key, info in infos.items():
         client, anticheat = key.split("/", 1)

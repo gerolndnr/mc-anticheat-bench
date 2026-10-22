@@ -82,8 +82,9 @@ def markdown(result: dict) -> str:
         if legal.get("invalid"):
             load += (f" **INVALID: legal play impaired in {legal['impaired']}/{legal['checked']} baseline trials "
                      f"(bot held back or frozen), results of this pair do not measure the cheats**")
+        reused = f", reused from {info['reused_from']}" if info.get("reused_from") else ""
         out.append(f"- `{key}`: finished={info['done']}, shards={info.get('shards') or 1}, joins={info.get('joins', '?')}, "
-                   f"unattributed flags={info['unattributed_flags']}, errors={len(info['errors'])}{load}")
+                   f"unattributed flags={info['unattributed_flags']}, errors={len(info['errors'])}{load}{reused}")
     out.append("")
     return "\n".join(out)
 

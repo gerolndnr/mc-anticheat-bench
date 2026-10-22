@@ -159,6 +159,21 @@ dieselben Jars: Sie stehen mit Pfad in `run.json` (`jar_paths`) und werden nicht
 Downloads, der LiquidBounce-Build und die Modul-Dumps liegen im Actions-Cache und werden pro Konfiguration
 wiederverwendet. `refresh` lädt alles neu.
 
+**Unveränderte Paare werden nicht neu gemessen.** Jedes Client×AntiCheat-Paar bekommt einen Schlüssel über alles, was
+seine Messung bestimmt: den Trial-Plan (Szenarien, Varianten, Wiederholungen, Seed, Timing), die Prüfsummen der Jars
+von Paper, Client und AntiCheat, die Flag-Quellen und Config-Dateien des AntiCheats, die Server- und Client-Settings
+sowie den Quellcode von Driver-Mod, Collector und `processes.py`. Sauber gemessene Paare (fertig, nicht überlastet,
+legales Spiel unbeeinträchtigt) legt `collect` im Pair-Store ab, einem eigenen Eintrag im Actions-Cache. Der nächste
+Lauf übernimmt Paare mit gleichem Schlüssel von dort, statt Shards für sie zu planen:
+
+- Neue AntiCheat-Version: nur die Paare dieses AntiCheats laufen, die Referenz kommt aus dem Store, das Screening
+  bleibt erhalten.
+- Neue Client-Version: die Referenz und alle Paare dieses Clients laufen neu.
+- Nur Auswertung geändert (`[scoring]`, `default_alerts`): nichts wird gemessen, alles wird neu ausgewertet.
+
+Der Report nennt übernommene Paare unter „Run health“ („reused from gh-…“). `remeasure` misst alles neu. Der Store
+behält pro Paar die zwei neuesten Schlüssel; der Actions-Cache löscht ihn nach 7 Tagen ohne Lauf.
+
 ### Live-Dashboard
 
 ```sh

@@ -26,6 +26,10 @@ on:
         description: Download client and anticheat jars again and rediscover module dumps
         type: boolean
         default: false
+      remeasure:
+        description: Measure every pair again, even those whose inputs did not change
+        type: boolean
+        default: false
 
 env:
   RUN_ID: gh-${{ github.run_number }}
@@ -69,6 +73,13 @@ jobs:
           path: work/launcher
           key: ${{ steps.keys.outputs.launcher }}
       - run: ./bench build
+      # Raw data of earlier, unchanged pairs (see "Pair store" in orchestrator/acbench/ci.py).
+      - if: ${{ !inputs.remeasure }}
+        uses: actions/cache/restore@v4
+        with:
+          path: store
+          key: pairstore-${{ github.run_id }}
+          restore-keys: pairstore-
       - id: matrix
         run: |
           args=()
@@ -77,7 +88,7 @@ jobs:
           [ -n "$INPUT_SCENARIOS" ] && args+=(--scenarios "$INPUT_SCENARIOS")
           [ -n "$INPUT_REPS" ] && args+=(--reps "$INPUT_REPS")
           ./bench ci matrix --run-id "$RUN_ID" --stage reference --slots "$INPUT_SLOTS" "${args[@]}" \
-            --install --discover --tar plan-reference.tgz --out matrix.json
+            --install --discover --store store --tar plan-reference.tgz --out matrix.json
           echo "matrix=$(cat matrix.json)" >> "$GITHUB_OUTPUT"
           echo "count=$(python3 -c 'import json; print(len(json.load(open("matrix.json"))))')" >> "$GITHUB_OUTPUT"
       - name: Pack jars and builds for the shards
@@ -158,6 +169,12 @@ jobs:
           pattern: "shard-*-none-*"
           merge-multiple: true
       - run: for f in bundle.tgz plan-reference.tgz shard-*.tgz; do [ -f "$f" ] && tar xzf "$f"; done; true
+      - if: ${{ !inputs.remeasure }}
+        uses: actions/cache/restore@v4
+        with:
+          path: store
+          key: pairstore-${{ github.run_id }}
+          restore-keys: pairstore-
       - id: matrix
         run: |
           args=()
@@ -166,7 +183,7 @@ jobs:
           [ -n "$INPUT_SCENARIOS" ] && args+=(--scenarios "$INPUT_SCENARIOS")
           [ -n "$INPUT_REPS" ] && args+=(--reps "$INPUT_REPS")
           ./bench ci matrix --run-id "$RUN_ID" --stage anticheats --slots "$INPUT_SLOTS" "${args[@]}" \
-            --tar plan-anticheats.tgz --out matrix.json
+            --store store --tar plan-anticheats.tgz --out matrix.json
           echo "matrix=$(cat matrix.json)" >> "$GITHUB_OUTPUT"
           echo "count=$(python3 -c 'import json; print(len(json.load(open("matrix.json"))))')" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
@@ -228,8 +245,19 @@ jobs:
           pattern: "shard-*"
           merge-multiple: true
           path: tarballs
+      # Restored even with "remeasure", so pairs this run does not touch stay in the store.
+      - uses: actions/cache/restore@v4
+        with:
+          path: store
+          key: pairstore-${{ github.run_id }}
+          restore-keys: pairstore-
       - id: collect
-        run: ./bench ci collect "results/$RUN_ID" tarballs/*.tgz
+        run: ./bench ci collect "results/$RUN_ID" tarballs/*.tgz --store store
+      - if: always() && hashFiles('store/**') != ''
+        uses: actions/cache/save@v4
+        with:
+          path: store
+          key: pairstore-${{ github.run_id }}
       - if: always()
         run: '[ -f "results/$RUN_ID/report.md" ] && cat "results/$RUN_ID/report.md" >> "$GITHUB_STEP_SUMMARY"; true'
       - if: always()
