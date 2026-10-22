@@ -99,6 +99,26 @@ def cmd_analyze(args) -> None:
     print(f"{md}\n{page}")
 
 
+def cmd_ci_matrix(args) -> None:
+    from . import ci
+    jobs = ci.matrix(_load(args), args.run_id, args.stage, artifacts(), _filter(args.scenarios), args.slots,
+                     Path(args.tar), install=args.install, discover_missing=args.discover)
+    Path(args.out).write_text(json.dumps(jobs, separators=(",", ":")))
+
+
+def cmd_ci_shard(args) -> None:
+    from . import ci
+    bench = _load(args)
+    if len(bench.clients) != 1 or len(bench.anticheats) != 1:
+        sys.exit("ci shard runs one pair: pass exactly one --clients and one --anticheats")
+    sys.exit(0 if ci.shard(bench, args.run_id, artifacts(), args.shard, args.of, Path(args.tar)) else 1)
+
+
+def cmd_ci_collect(args) -> None:
+    from . import ci
+    sys.exit(0 if ci.collect(Path(args.run_dir), [Path(t) for t in args.tars]) else 1)
+
+
 def cmd_serve(args) -> None:
     from .dashboard import serve
     serve(Path(args.results).resolve(), args.host, args.port)
@@ -132,6 +152,31 @@ def main() -> None:
         if name == "run":
             p.add_argument("--run-id")
             p.add_argument("--workers", type=int, help="parallel workers (default: [parallel] workers in benchmark.toml)")
+    ci = sub.add_parser("ci", help="run one benchmark across many machines (GitHub Actions matrix)")
+    ci_sub = ci.add_subparsers(dest="ci_command", required=True)
+    for name, func, help_text in (("matrix", cmd_ci_matrix, "write a stage's pair plans and print its shard matrix"),
+                                  ("shard", cmd_ci_shard, "run one shard of one client × anticheat pair")):
+        p = ci_sub.add_parser(name, help=help_text)
+        p.add_argument("--run-id", required=True)
+        p.add_argument("--clients", help="comma separated client ids (default: from benchmark.toml)")
+        p.add_argument("--anticheats", help="comma separated anticheat ids, keep 'none' as reference")
+        p.add_argument("--scenarios", help="comma separated scenario ids to restrict the run")
+        p.add_argument("--reps", type=int, help="override repetitions")
+        p.add_argument("--tar", required=True, help="tarball to write (plans or the shard folder)")
+        p.set_defaults(func=func)
+        if name == "matrix":
+            p.add_argument("--stage", choices=("reference", "anticheats"), required=True)
+            p.add_argument("--slots", type=int, help="parallel machines (default: [parallel] ci_slots)")
+            p.add_argument("--out", required=True, help="file for the job matrix (JSON list)")
+            p.add_argument("--install", action="store_true", help="also install the game (fills the launcher cache)")
+            p.add_argument("--discover", action="store_true", help="discover clients without a module dump first")
+        else:
+            p.add_argument("--shard", type=int, required=True)
+            p.add_argument("--of", type=int, required=True)
+    p = ci_sub.add_parser("collect", help="unpack all tarballs of a run, merge shard status and write the reports")
+    p.add_argument("run_dir")
+    p.add_argument("tars", nargs="+")
+    p.set_defaults(func=cmd_ci_collect)
     p = sub.add_parser("serve", help="live dashboard over all runs in results/")
     p.add_argument("--host", default="127.0.0.1", help="use 0.0.0.0 to reach it from other machines")
     p.add_argument("--port", type=int, default=8765)

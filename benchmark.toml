@@ -36,6 +36,10 @@ timeout_seconds = 3600      # minimum per client × anticheat; grows to twice th
 workers = "auto"
 # Client × anticheat runs smaller than this are not split further.
 min_trials_per_shard = 30
+# GitHub Actions (.github/workflows/benchmark.yml): runners per stage, and the smallest shard worth its own runner
+# (each runner pays ~5 min start-up for server and clients).
+ci_slots = 20
+ci_min_trials_per_shard = 10
 
 [timing]
 start_delay_ticks = 100   # after joining, before the first trial

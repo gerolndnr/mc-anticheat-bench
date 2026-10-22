@@ -1,0 +1,233 @@
+# Runs the benchmark as a matrix of shards, one per runner (see orchestrator/acbench/ci.py):
+#   prepare → reference shards ("none") → screening → anticheat shards → collect (report)
+# Every stage spreads its shards over `slots` runners so they finish together; GitHub queues anything beyond the
+# account's concurrency limit (20 jobs on the Free plan) and starts it as soon as a runner is free.
+name: Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      clients:
+        description: Comma separated client ids (empty = benchmark.toml)
+        default: ""
+      anticheats:
+        description: Comma separated anticheat ids, keep "none" as reference (empty = benchmark.toml)
+        default: ""
+      scenarios:
+        description: Comma separated scenario ids (empty = all)
+        default: ""
+      reps:
+        description: Repetitions (empty = benchmark.toml)
+        default: ""
+      slots:
+        description: Runners per stage
+        default: "20"
+      refresh:
+        description: Download client and anticheat jars again and rediscover module dumps
+        type: boolean
+        default: false
+
+env:
+  RUN_ID: gh-${{ github.run_number }}
+  INPUT_CLIENTS: ${{ inputs.clients }}
+  INPUT_ANTICHEATS: ${{ inputs.anticheats }}
+  INPUT_SCENARIOS: ${{ inputs.scenarios }}
+  INPUT_REPS: ${{ inputs.reps }}
+  INPUT_SLOTS: ${{ inputs.slots }}
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      count: ${{ steps.matrix.outputs.count }}
+      launcher-key: ${{ steps.keys.outputs.launcher }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-bench
+      - uses: gradle/actions/setup-gradle@v4
+      - id: keys
+        run: |
+          echo "launcher=launcher-$(python3 -c 'import tomllib; d = tomllib.load(open("benchmark.toml", "rb")); print(d["minecraft"] + "-" + d["client"].get("fabric_loader", ""))')" >> "$GITHUB_OUTPUT"
+      # Jars, the LiquidBounce build and the module dumps only change with the configuration. Every run saves its
+      # state under a new key, so module dumps and newer downloads carry over; "refresh" starts from scratch.
+      - if: ${{ !inputs.refresh }}
+        uses: actions/cache/restore@v4
+        with:
+          path: cache
+          key: downloads-${{ hashFiles('benchmark.toml', 'config/**') }}-${{ github.run_id }}
+          restore-keys: downloads-${{ hashFiles('benchmark.toml', 'config/**') }}-
+      - uses: actions/cache@v4
+        with:
+          path: work/launcher
+          key: ${{ steps.keys.outputs.launcher }}
+      - run: ./bench build
+      - id: matrix
+        run: |
+          args=()
+          [ -n "$INPUT_CLIENTS" ] && args+=(--clients "$INPUT_CLIENTS")
+          [ -n "$INPUT_ANTICHEATS" ] && args+=(--anticheats "$INPUT_ANTICHEATS")
+          [ -n "$INPUT_SCENARIOS" ] && args+=(--scenarios "$INPUT_SCENARIOS")
+          [ -n "$INPUT_REPS" ] && args+=(--reps "$INPUT_REPS")
+          ./bench ci matrix --run-id "$RUN_ID" --stage reference --slots "$INPUT_SLOTS" "${args[@]}" \
+            --install --discover --tar plan-reference.tgz --out matrix.json
+          echo "matrix=$(cat matrix.json)" >> "$GITHUB_OUTPUT"
+          echo "count=$(python3 -c 'import json; print(len(json.load(open("matrix.json"))))')" >> "$GITHUB_OUTPUT"
+      - name: Pack jars and builds for the shards
+        run: |
+          rm -rf cache/clients/*/src-*
+          tar czf bundle.tgz cache driver-mod/build/libs collector-plugin/build/libs
+      - uses: actions/cache/save@v4
+        with:
+          path: cache
+          key: downloads-${{ hashFiles('benchmark.toml', 'config/**') }}-${{ github.run_id }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bundle
+          path: bundle.tgz
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plan-reference
+          path: plan-reference.tgz
+
+  reference:
+    needs: prepare
+    if: needs.prepare.outputs.count != '0'
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      # One crashed client must not cancel the other shards.
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-bench
+        with:
+          launcher-key: ${{ needs.prepare.outputs.launcher-key }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: bundle
+      - uses: actions/download-artifact@v4
+        with:
+          name: plan-reference
+      - run: tar xzf bundle.tgz && tar xzf plan-reference.tgz
+      - run: |
+          ./bench ci shard --run-id "$RUN_ID" --clients "${{ matrix.client }}" --anticheats "${{ matrix.anticheat }}" \
+            --shard ${{ matrix.shard }} --of ${{ matrix.of }} \
+            --tar "shard-${{ matrix.client }}-${{ matrix.anticheat }}-${{ matrix.shard }}.tgz"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shard-${{ matrix.client }}-${{ matrix.anticheat }}-${{ matrix.shard }}
+          path: shard-*.tgz
+          if-no-files-found: ignore
+          overwrite: true
+
+  screen:
+    needs: [prepare, reference]
+    # Runs with an incomplete reference too: variants without reference data are simply not screened out.
+    if: ${{ !cancelled() && needs.prepare.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      count: ${{ steps.matrix.outputs.count }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-bench
+        with:
+          clients: "false"
+      - uses: actions/download-artifact@v4
+        with:
+          name: bundle
+      - uses: actions/download-artifact@v4
+        with:
+          name: plan-reference
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "shard-*-none-*"
+          merge-multiple: true
+      - run: for f in bundle.tgz plan-reference.tgz shard-*.tgz; do [ -f "$f" ] && tar xzf "$f"; done; true
+      - id: matrix
+        run: |
+          args=()
+          [ -n "$INPUT_CLIENTS" ] && args+=(--clients "$INPUT_CLIENTS")
+          [ -n "$INPUT_ANTICHEATS" ] && args+=(--anticheats "$INPUT_ANTICHEATS")
+          [ -n "$INPUT_SCENARIOS" ] && args+=(--scenarios "$INPUT_SCENARIOS")
+          [ -n "$INPUT_REPS" ] && args+=(--reps "$INPUT_REPS")
+          ./bench ci matrix --run-id "$RUN_ID" --stage anticheats --slots "$INPUT_SLOTS" "${args[@]}" \
+            --tar plan-anticheats.tgz --out matrix.json
+          echo "matrix=$(cat matrix.json)" >> "$GITHUB_OUTPUT"
+          echo "count=$(python3 -c 'import json; print(len(json.load(open("matrix.json"))))')" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: plan-anticheats
+          path: plan-anticheats.tgz
+
+  anticheats:
+    needs: [prepare, screen]
+    if: ${{ !cancelled() && needs.screen.result == 'success' && needs.screen.outputs.count != '0' }}
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.screen.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-bench
+        with:
+          launcher-key: ${{ needs.prepare.outputs.launcher-key }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: bundle
+      - uses: actions/download-artifact@v4
+        with:
+          name: plan-anticheats
+      - run: tar xzf bundle.tgz && tar xzf plan-anticheats.tgz
+      - run: |
+          ./bench ci shard --run-id "$RUN_ID" --clients "${{ matrix.client }}" --anticheats "${{ matrix.anticheat }}" \
+            --shard ${{ matrix.shard }} --of ${{ matrix.of }} \
+            --tar "shard-${{ matrix.client }}-${{ matrix.anticheat }}-${{ matrix.shard }}.tgz"
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: shard-${{ matrix.client }}-${{ matrix.anticheat }}-${{ matrix.shard }}
+          path: shard-*.tgz
+          if-no-files-found: ignore
+          overwrite: true
+
+  collect:
+    needs: [prepare, reference, screen, anticheats]
+    if: ${{ !cancelled() && needs.prepare.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "plan-*"
+          merge-multiple: true
+          path: tarballs
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "shard-*"
+          merge-multiple: true
+          path: tarballs
+      - id: collect
+        run: ./bench ci collect "results/$RUN_ID" tarballs/*.tgz
+      - if: always()
+        run: '[ -f "results/$RUN_ID/report.md" ] && cat "results/$RUN_ID/report.md" >> "$GITHUB_STEP_SUMMARY"; true'
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: results-${{ env.RUN_ID }}
+          path: results/${{ env.RUN_ID }}

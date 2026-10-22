@@ -1,0 +1,31 @@
+name: Set up acbench
+description: Java, Python, the portablemc launcher and (optionally) Xvfb and Mesa for the headless clients.
+inputs:
+  clients:
+    description: Install Xvfb, Mesa and the cached game installation, needed to start Minecraft clients.
+    default: "true"
+  launcher-key:
+    description: Cache key of the game installation (work/launcher).
+    default: ""
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-java@v4
+      with:
+        distribution: temurin
+        java-version: "25"
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - shell: bash
+      run: pip install --quiet portablemc==5.0.6
+    - if: inputs.clients == 'true'
+      shell: bash
+      run: |
+        sudo apt-get update -qq
+        sudo apt-get install -y -qq xvfb xauth mesa-vulkan-drivers libgl1-mesa-dri libegl1 libegl-mesa0 > /dev/null
+    - if: inputs.clients == 'true' && inputs.launcher-key != ''
+      uses: actions/cache/restore@v4
+      with:
+        path: work/launcher
+        key: ${{ inputs.launcher-key }}

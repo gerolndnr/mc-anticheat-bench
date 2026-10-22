@@ -199,37 +199,56 @@ class Runner:
             self.slots.put(slot)
 
     # ---- setup -------------------------------------------------------------------------------------------------
-    def prepare(self) -> None:
+    def prepare(self, install: bool = True) -> None:
         self.run_dir.mkdir(parents=True, exist_ok=True)
-        self.paper_jar = fetch.paper(self.bench, self.cache)
+        previous = self.run_dir / "run.json"
+        old = json.loads(previous.read_text()) if previous.exists() else {}
+        # Jars an earlier invocation of this run recorded are reused as they are, so every shard of a run measures
+        # the same builds even when they run on different machines and a newer release appeared in between.
+        pinned_paths = old.get("jar_paths", {})
+
+        def pinned(key: str, fetcher) -> list[Path]:
+            paths = [self.root / p for p in pinned_paths.get(key, [])]
+            return paths if paths and all(p.exists() for p in paths) else fetcher()
+
+        self.paper_jar = pinned("paper", lambda: [fetch.paper(self.bench, self.cache)])[0]
         bench = self.bench
         meta = {
             "name": bench.name, "run_id": self.run_id, "minecraft": bench.minecraft, "repetitions": bench.repetitions,
             "grace_ticks": bench.grace_ticks, "scoring": bench.scoring, "clients": bench.client_ids,
             "anticheats": bench.anticheat_ids, "paper": self.paper_jar.name,
             "target_player": bench.client.get("target_username", "BenchTarget"),
-            "started": time.strftime("%Y-%m-%d %H:%M:%S"), "workers": self.workers, "jars": {}, "status": {},
+            "started": time.strftime("%Y-%m-%d %H:%M:%S"), "workers": self.workers, "jars": {}, "jar_paths": {},
+            "status": {},
         }
-        previous = self.run_dir / "run.json"
-        if previous.exists():
+        if old:
             # Re-running parts of a run (e.g. a single anticheat) keeps what earlier invocations recorded.
-            old = json.loads(previous.read_text())
             meta["jars"] = old.get("jars", {})
+            meta["jar_paths"] = dict(pinned_paths)
             meta["status"] = old.get("status", {})
             meta["anticheats"] = sorted(set(old.get("anticheats", [])) | set(bench.anticheat_ids), key=lambda a: (a != "none", a))
             meta["clients"] = sorted(set(old.get("clients", [])) | set(bench.client_ids))
             meta["started"] = old.get("started", meta["started"])
         self.meta = meta
+
+        def record(key: str, jars: list[Path]) -> list[Path]:
+            meta["jars"][key] = [j.name for j in jars]
+            meta["jar_paths"][key] = [os.path.relpath(j, self.root) for j in jars]
+            return jars
+
         # Downloads and builds happen once, before any worker starts.
+        record("paper", [self.paper_jar])
         self.client_jars = {}
         for client in bench.clients.values():
-            self.client_jars[client.id] = fetch.client_mod(bench, client, self.cache)
-            meta["jars"][f"client:{client.id}"] = [j.name for j in self.client_jars[client.id]]
+            key = f"client:{client.id}"
+            self.client_jars[client.id] = record(key, pinned(key, lambda: fetch.client_mod(bench, client, self.cache)))
         self.ac_jars = {}
         for ac in bench.anticheats.values():
-            self.ac_jars[ac.id] = fetch.anticheat(bench, ac, self.cache)
-            meta["jars"][f"anticheat:{ac.id}"] = [j.name for j in self.ac_jars[ac.id]]
+            key = f"anticheat:{ac.id}"
+            self.ac_jars[ac.id] = record(key, pinned(key, lambda: fetch.anticheat(bench, ac, self.cache)))
         self.save_meta()
+        if not install:
+            return
         # The game itself is installed once; parallel launchers then only read the shared folder.
         installer = Client(bench, self.work / "clients" / "_install", self.work / "launcher", [], self.run_dir / "run.json",
                            self.run_dir / "install.log")
@@ -241,21 +260,27 @@ class Runner:
             (self.run_dir / "run.json").write_text(json.dumps(self.meta, indent=2))
 
     # ---- planning ----------------------------------------------------------------------------------------------
-    def make_jobs(self, client: ClientConfig, ac: AntiCheat, trials: list[dict]) -> list[Job]:
-        """Writes the pair's full plan and splits its trials round-robin into shards (a mix of scenarios each)."""
+    def write_pair(self, client: ClientConfig, ac: AntiCheat, trials: list[dict]) -> Path:
+        """Writes the pair's full plan, which the analysis and every shard of the pair read."""
         out = self.run_dir / client.id / ac.id
         out.mkdir(parents=True, exist_ok=True)
         (out / "anticheat.json").write_text(json.dumps({
             "id": ac.id, "name": ac.name, "default_alerts": ac.default_alerts,
             "default_alert_aliases": ac.default_alert_aliases,
         }, indent=1))
-        legacy = (out / "server-events.jsonl").exists() and not (out / "shards").exists()
         full_plan = build_plan(self.bench, client, self.run_id, trials, {
             "progress": str((out / "progress.json").resolve()),
             "client_log": str((out / "client-events.jsonl").resolve()),
             "modules_dump": str((out / "modules.json").resolve()),
         })
         (out / "plan.json").write_text(json.dumps(full_plan, indent=1))
+        return out
+
+    def make_jobs(self, client: ClientConfig, ac: AntiCheat, trials: list[dict]) -> list[Job]:
+        """Writes the pair's full plan and splits its trials round-robin into shards (a mix of scenarios each)."""
+        out = self.run_dir / client.id / ac.id
+        legacy = (out / "server-events.jsonl").exists() and not (out / "shards").exists()
+        self.write_pair(client, ac, trials)
         if legacy:
             # A run started before sharding existed is resumed in its original single-server layout.
             return [Job(client, ac, 0, 1, out, trials)]
@@ -315,7 +340,7 @@ class Runner:
             self.slots.put(slot)
 
     # ---- one shard on one worker -------------------------------------------------------------------------------
-    def run_shard(self, job: Job, slot: int, live: LiveStatus) -> None:
+    def run_shard(self, job: Job, slot: int, live: LiveStatus) -> dict:
         bench, client, ac, out = self.bench, job.client, job.ac, job.unit_dir
         tag = f"{client.id}/{ac.id}" + (f"#{job.shard}" if job.shards > 1 else "")
         out.mkdir(parents=True, exist_ok=True)
@@ -413,11 +438,14 @@ class Runner:
         with self.meta_lock:
             self.meta["status"].setdefault(f"{client.id}/{ac.id}", {})[f"s{job.shard}"] = status
         self.save_meta()
+        # Shards run on other machines (CI) bring their status along in their own folder.
+        (out / "status.json").write_text(json.dumps(status, indent=1))
         print(f"[run] {tag}: {status}")
         live.shard(client.id, ac.id, job.shard, "done" if status["finished"] else "error", error=status.get("error"),
                    restarts=status["restarts"])
         if (out / "modules.json").exists():
             fetch.copy(out / "modules.json", module_dump_file(bench, client))
+        return status
 
     @staticmethod
     def _start(process: Client) -> None:

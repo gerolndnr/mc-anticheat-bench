@@ -127,6 +127,37 @@ werten Verzögerungen schnell als Cheat. Deshalb misst jeder Trial, wie viele Ti
 geschafft haben (Soll: 20). Liegt der Median der legalen Trials eines Laufs unter 18,5 Ticks/s oder der Server über
 40 ms pro Tick, markieren Report und Dashboard ihn als **überlastet**. Dann mit weniger Workern wiederholen.
 
+### Auf GitHub Actions laufen lassen
+
+Der Workflow [`benchmark.yml`](.github/workflows/benchmark.yml) verteilt einen Run auf viele Runner. Gestartet wird
+er unter Actions → Benchmark → „Run workflow“ oder per CLI:
+
+```sh
+gh workflow run benchmark.yml                                   # kompletter Lauf laut benchmark.toml
+gh workflow run benchmark.yml -f scenarios=fly,reach -f reps=1  # schneller Teillauf
+```
+
+Jeder Runner führt genau **einen Shard** aus: einen Teil der Trials eines Client×AntiCheat-Paars, mit eigenem Server,
+Bot und Ziel-Bot. Der Ablauf hat fünf Jobs:
+
+1. **prepare**: baut Driver-Mod und Collector, lädt alle Jars, erzeugt fehlende Modul-Dumps (`discover`), installiert
+   das Spiel und plant die Referenz-Shards.
+2. **reference**: die Shards aller `none`-Paare, alle gleichzeitig.
+3. **screen**: liest die Referenz und plant die AntiCheat-Paare nur mit den Varianten, die dort einen Effekt hatten
+   (wie lokal, siehe `screen_variants`).
+4. **anticheats**: die Shards aller AntiCheat-Paare.
+5. **collect**: führt alles zu einem Run zusammen und schreibt den Report in die Job-Zusammenfassung. Der komplette
+   Ordner `results/<run>/` liegt als Artefakt `results-gh-<nr>` bereit.
+
+Pro Stufe teilt `./bench ci matrix` die Paare so in Shards auf, dass `ci_slots` Runner (Standard 20, das Limit
+gleichzeitiger Jobs im Free-Plan) etwa gleich lange beschäftigt sind. Ein Shard bekommt mindestens
+`ci_min_trials_per_shard` Trials (Standard 10), weil jeder Runner ~5 min Start-Up zahlt. Bei mehr Paaren als Runnern
+ist jedes Paar ein Job, und GitHub startet die wartenden, sobald ein Runner frei wird. Alle Shards eines Runs messen
+dieselben Jars: Sie stehen mit Pfad in `run.json` (`jar_paths`) und werden nicht erneut aufgelöst.
+
+Downloads, der LiquidBounce-Build und die Modul-Dumps liegen im Actions-Cache und werden pro Konfiguration
+wiederverwendet. `refresh` lädt alles neu.
+
 ### Live-Dashboard
 
 ```sh
