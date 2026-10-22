@@ -21,9 +21,21 @@ runs:
       run: pip install --quiet portablemc==5.0.6
     - if: inputs.clients == 'true'
       shell: bash
+      # The runner image usually ships these already; apt-get update alone sometimes takes ~10 min on a runner,
+      # so apt only runs for packages that are really missing.
       run: |
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq xvfb xauth mesa-vulkan-drivers libgl1-mesa-dri libegl1 libegl-mesa0 > /dev/null
+        missing=""
+        for pkg in xvfb xauth mesa-vulkan-drivers libgl1-mesa-dri libegl1 libegl-mesa0; do
+          dpkg -s "$pkg" > /dev/null 2>&1 || missing="$missing $pkg"
+        done
+        if [ -z "$missing" ]; then
+          echo "Xvfb and Mesa are already installed"
+        else
+          echo "Installing:$missing"
+          sudo rm -f /var/lib/man-db/auto-update
+          sudo apt-get update -q -o DPkg::Lock::Timeout=120
+          sudo apt-get install -y -q --no-install-recommends -o DPkg::Lock::Timeout=120 $missing
+        fi
     - if: inputs.clients == 'true' && inputs.launcher-key != ''
       uses: actions/cache/restore@v4
       with:
