@@ -60,6 +60,27 @@ def default_alert_tick(flags: list[dict], rules: dict) -> int | None:
     return None
 
 
+SERVER_RESTART_TICK_GAP = 1_000_000
+
+
+def _continuous_ticks(events: list[dict]) -> list[dict]:
+    """A shard restarts its server after a kick outside any trial, and the new server counts ticks from 0 again.
+    Every server start after the first moves its ticks past the previous ones, so tick windows never overlap."""
+    offset, last = 0, 0
+    out = []
+    for e in events:
+        if e.get("type") == "server_ready" and out:
+            offset = last + SERVER_RESTART_TICK_GAP
+        if offset:
+            e = dict(e)
+            for key in ("tick", "begin_tick"):
+                if isinstance(e.get(key), int):
+                    e[key] += offset
+        last = max(last, e.get("tick", 0) if isinstance(e.get("tick"), int) else 0)
+        out.append(e)
+    return out
+
+
 def trial_rows(unit_dir: Path, client_id: str, ac_id: str, grace_ticks: int, ignore_players: set[str] | None = None,
                rules: dict | None = None) -> tuple[list[dict], dict]:
     """Rows for one server's worth of trials: a whole client × anticheat run, or one shard of it.
@@ -68,7 +89,7 @@ def trial_rows(unit_dir: Path, client_id: str, ac_id: str, grace_ticks: int, ign
     """
     plan = json.loads((unit_dir / "plan.json").read_text())
     trials = {t["id"]: t for t in plan["trials"]}
-    events = load_jsonl(unit_dir / "server-events.jsonl")
+    events = _continuous_ticks(load_jsonl(unit_dir / "server-events.jsonl"))
     client_events = load_jsonl(unit_dir / "client-events.jsonl")
 
     prepared = {e["trial"]: e for e in client_events if e.get("type") == "trial_prepared"}
@@ -142,6 +163,9 @@ def trial_rows(unit_dir: Path, client_id: str, ac_id: str, grace_ticks: int, ign
         "joins": sum(1 for e in events if e.get("type") == "join"),
         "server_ready": next((e for e in events if e.get("type") == "server_ready"), None),
         "done": any(e.get("type") == "done" for e in events),
+        # Planned trials without a measurement and without an anticheat kick: lost to the benchmark itself.
+        "unmeasured": sum(1 for r in rows if not r["completed"] and not r["kicked"]),
+        "server_starts": sum(1 for e in events if e.get("type") == "server_ready"),
         "errors": [e for e in events + client_events if e.get("type") == "error"][:50],
     }
     return rows, info
@@ -429,6 +453,9 @@ def compute_run(run_dir: Path) -> tuple[dict, list[dict]]:
                 "joins": sum(i["joins"] for i in unit_infos),
                 "server_ready": unit_infos[0]["server_ready"],
                 "done": all(i["done"] for i in unit_infos),
+                "unmeasured": sum(i["unmeasured"] for i in unit_infos),
+                "trials_planned": len(pair_rows),
+                "server_restarts": sum(max(0, i["server_starts"] - 1) for i in unit_infos),
                 "errors": [e for i in unit_infos for e in i["errors"]][:50],
                 "shards": len(units) if units != [ac_dir] else 0,
                 "quality": measurement_quality(pair_rows),

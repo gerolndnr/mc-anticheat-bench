@@ -88,6 +88,11 @@ def markdown(result: dict) -> str:
         if legal.get("invalid"):
             load += (f" **INVALID: legal play impaired in {legal['impaired']}/{legal['checked']} baseline trials "
                      f"(bot held back or frozen), results of this pair do not measure the cheats**")
+        if info.get("unmeasured"):
+            load += (f" **INCOMPLETE: {info['unmeasured']}/{info.get('trials_planned', '?')} trials not measured "
+                     f"(client lost without an anticheat kick), results of this pair are partial**")
+        if info.get("server_restarts"):
+            load += f", server restarted {info['server_restarts']}× after kicks outside trials"
         reused = f", reused from {info['reused_from']}" if info.get("reused_from") else ""
         out.append(f"- `{key}`: finished={info['done']}, shards={info.get('shards') or 1}, joins={info.get('joins', '?')}, "
                    f"unattributed flags={info['unattributed_flags']}, target bot flags={info.get('target_flags', '?')}, errors={len(info['errors'])}{load}{reused}")

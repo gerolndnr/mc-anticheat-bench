@@ -24,7 +24,7 @@ import tarfile
 import time
 from pathlib import Path
 
-from .analyze import REFERENCE_AC, analyze_run
+from .analyze import REFERENCE_AC, analyze_run, trial_rows
 from .config import AntiCheat, Benchmark, Client
 from .plan import build_trials, estimate_seconds, module_dump_file
 from .report import write_reports
@@ -145,6 +145,14 @@ class PairStore:
                 info.with_suffix(".tgz").unlink(missing_ok=True)
 
 
+def _unmeasured(pair_dir: Path, client_id: str, ac_id: str) -> int:
+    """Trials of a pair's shards without a measurement and without an anticheat kick."""
+    lost = 0
+    for unit in sorted(p.parent for p in pair_dir.glob("shards/*/plan.json")) or [pair_dir]:
+        lost += trial_rows(unit, client_id, ac_id, 0)[1]["unmeasured"]
+    return lost
+
+
 def _restrict(bench: Benchmark, client_id: str) -> Benchmark:
     return dataclasses.replace(bench, client_ids=[client_id], clients={client_id: bench.clients[client_id]},
                                anticheats=dict(bench.anticheats), anticheat_ids=list(bench.anticheat_ids))
@@ -191,10 +199,17 @@ def matrix(bench: Benchmark, run_id: str, stage: str, artifacts: dict[str, Path]
                     tar.extractall(runner.run_dir, filter="data")
                 # Plan and default alert thresholds of this run; the raw data is identical by construction of the key.
                 runner.write_pair(client, ac, trials)
-                reused[pair] = {"key": keys[pair], "run": info.get("run")}
-                written.append(out)
-                print(f"[ci] {pair}: unchanged since {info.get('run')}, reusing its {len(trials)} trials")
-                continue
+                lost = _unmeasured(out, client.id, ac.id)
+                if lost:
+                    # Stored before incomplete pairs were kept out of the store: measure it again.
+                    print(f"[ci] {pair}: stored data from {info.get('run')} misses {lost} trials, measuring again")
+                    shutil.rmtree(out)
+                    out = runner.write_pair(client, ac, trials)
+                else:
+                    reused[pair] = {"key": keys[pair], "run": info.get("run")}
+                    written.append(out)
+                    print(f"[ci] {pair}: unchanged since {info.get('run')}, reusing its {len(trials)} trials")
+                    continue
             written += [out / "plan.json", out / "anticheat.json"]
             pairs[(client.id, ac.id)] = (len(trials), estimate_seconds(plan))
     runner.meta.update(pair_keys=keys, reused=reused)
@@ -269,8 +284,9 @@ def collect(run_dir: Path, tar_files: list[Path], store: PairStore | None = None
     if store:
         for pair, key in meta.get("pair_keys", {}).items():
             info = result["runs"].get(pair) or {}
-            # Only clean measurements are worth repeating forever: finished, not overloaded, legal play unimpaired.
-            clean = (info.get("done") and not (info.get("quality") or {}).get("overloaded")
+            # Only clean measurements are worth repeating forever: finished, every trial measured, not overloaded,
+            # legal play unimpaired.
+            clean = (info.get("done") and not info.get("unmeasured") and not (info.get("quality") or {}).get("overloaded")
                      and not (info.get("legal_play") or {}).get("invalid"))
             if pair in reused or not clean:
                 continue

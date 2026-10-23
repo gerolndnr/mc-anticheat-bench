@@ -71,6 +71,46 @@ def _needs_target_player(trials: list[dict]) -> bool:
     return any(t.get("type") == "player" for trial in trials for t in trial.get("targets", []))
 
 
+def _count(events_file: Path, *needles: str) -> int:
+    if not events_file.exists():
+        return 0
+    return sum(1 for line in events_file.read_text().splitlines() if all(n in line for n in needles))
+
+
+def _wait_count(events_file: Path, before: int, timeout: float, *needles: str) -> bool:
+    """Waits until more lines than `before` contain all needles (e.g. a new server_ready after a restart)."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if _count(events_file, *needles) > before:
+            return True
+        time.sleep(1)
+    return False
+
+
+def _last_disconnected_trial(client_log: Path) -> str | None:
+    """Trial the driver gave up on when it lost the connection (it marks it as done so it cannot loop forever)."""
+    if not client_log.exists():
+        return None
+    for line in reversed(client_log.read_text().splitlines()):
+        if '"type":"disconnected"' in line:
+            try:
+                return json.loads(line).get("trial") or None
+            except ValueError:
+                return None
+    return None
+
+
+def _unskip(progress_file: Path, trial_id: str) -> bool:
+    try:
+        done = json.loads(progress_file.read_text())
+    except (OSError, ValueError):
+        return False
+    if trial_id not in done:
+        return False
+    progress_file.write_text(json.dumps([t for t in done if t != trial_id]))
+    return True
+
+
 def _progress(progress_file: Path) -> int:
     try:
         return len(json.loads(progress_file.read_text()))
@@ -405,6 +445,8 @@ class Runner:
             # disconnect screen) is restarted like one that exited, so it cannot hold the shard until the deadline.
             stall_seconds = float(bench.client.get("stall_seconds", 300))
             seen_progress, progress_at = last_progress, time.time()
+            outside_kicks, server_restarts, retried = _count(events, '"type":"kick"', '"trial":""'), 0, set()
+            max_server_restarts = int(bench.client.get("max_server_restarts", 3))
             while not _events_done(events):
                 if time.time() > deadline:
                     status["error"] = "timeout"
@@ -421,6 +463,33 @@ class Runner:
                     print(f"[run] {tag}: target bot exited, restarting it")
                     self._start(target)
                 if not game.running():
+                    # A kick while no trial runs cannot come from a cheat: the server, typically the anticheat's
+                    # per-player state, is broken. Rejoining the same server would be kicked again (each time
+                    # skipping a trial), so the server is restarted fresh and the lost trial gets one more try.
+                    kicks = _count(events, '"type":"kick"', '"trial":""')
+                    if kicks > outside_kicks and server_restarts < max_server_restarts:
+                        outside_kicks, server_restarts = kicks, server_restarts + 1
+                        lost = _last_disconnected_trial(out / "client-events.jsonl")
+                        if lost and lost not in retried and _unskip(out / "progress.json", lost):
+                            retried.add(lost)
+                        print(f"[run] {tag}: kicked outside a trial, restarting the server ({server_restarts}/"
+                              f"{max_server_restarts}){f', retrying {lost}' if lost in retried else ''}")
+                        status["server_restarts"] = server_restarts
+                        if target:
+                            target.stop()
+                        server.stop()
+                        ready_before = _count(events, '"type":"server_ready"')
+                        server.prepare(self.work / "paper-shared")
+                        with _START_LOCK:
+                            server.start()
+                        if not _wait_count(events, ready_before, 120, '"type":"server_ready"'):
+                            status["error"] = "server did not come back after a restart"
+                            break
+                        if target:
+                            joins_before = _count(events, '"type":"join"', f'"player":"{target.username}"')
+                            self._start(target)
+                            _wait_count(events, joins_before, 300, '"type":"join"', f'"player":"{target.username}"')
+                        last_progress = _progress(out / "progress.json")
                     # Only restarts without any completed trial in between count towards the limit.
                     progress = _progress(out / "progress.json")
                     stalled_restarts = 0 if progress > last_progress else stalled_restarts + 1
