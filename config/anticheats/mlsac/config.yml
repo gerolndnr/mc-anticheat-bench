@@ -2,5 +2,7 @@
 # the key never ends up in the results. Everything else (models, penalties, alerts) comes from the account's preset
 # on mlsac.net.
 language: en
+# Verbose diagnostics in the console: shows whether the cloud answers with model verdicts at all.
+debug: true
 detection:
   api-key: "${MLSAC_API_KEY}"

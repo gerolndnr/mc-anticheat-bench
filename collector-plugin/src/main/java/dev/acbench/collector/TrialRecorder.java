@@ -22,6 +22,7 @@ import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerItemConsumeEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerKickEvent;
+import org.bukkit.event.player.PlayerLoginEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.event.player.PlayerVelocityEvent;
@@ -321,6 +322,23 @@ final class TrialRecorder implements Listener {
 		data.put("trial", a == null ? "" : a.trial.id);
 		data.put("reason", net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(event.reason()));
 		data.put("cancelled", event.isCancelled());
+		log.write("kick", data);
+	}
+
+	/**
+	 * A refused login (e.g. after an anticheat banned the bot) is logged like a kick outside any trial, so the runner
+	 * restarts the server with a fresh ban list instead of losing every remaining trial of the shard.
+	 */
+	@SuppressWarnings("deprecation")
+	@EventHandler(priority = EventPriority.MONITOR)
+	public void onLogin(PlayerLoginEvent event) {
+		if (event.getResult() == PlayerLoginEvent.Result.ALLOWED) return;
+		Map<String, Object> data = new LinkedHashMap<>();
+		data.put("player", event.getPlayer().getName());
+		data.put("trial", "");
+		data.put("reason", "login refused (" + event.getResult() + "): "
+				+ net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer.plainText().serialize(event.kickMessage()));
+		data.put("cancelled", false);
 		log.write("kick", data);
 	}
 }
