@@ -55,6 +55,10 @@ def _pack(tar_file: Path, root: Path, paths: list[Path]) -> None:
 _RUNNER_ONLY_CLIENT_SETTINGS = {"timeout_seconds", "max_restarts", "stall_seconds", "max_server_restarts"}
 # Plan fields that differ between runs without changing what is measured.
 _RUN_SPECIFIC = ("run_id", "progress_file", "client_log", "modules_dump", "server_address")
+def _file_hash(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def pair_key(runner: Runner, client: Client, ac: AntiCheat, plan: dict) -> str:
     """Everything that decides one pair's measurement: the trial list and timing (the plan without run-specific
     paths), the exact jars of server, client and anticheat, the anticheat's flag sources and config files, the server
