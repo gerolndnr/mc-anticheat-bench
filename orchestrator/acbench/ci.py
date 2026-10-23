@@ -52,6 +52,8 @@ def _pack(tar_file: Path, root: Path, paths: list[Path]) -> None:
             tar.add(path, arcname=str(path.relative_to(root)))
 
 
+# [client] settings that only steer the runner (when to give up or restart), not what a trial measures.
+_RUNNER_ONLY_CLIENT_SETTINGS = {"timeout_seconds", "max_restarts", "stall_seconds", "max_server_restarts"}
 # Plan fields that differ between runs without changing what is measured.
 _RUN_SPECIFIC = ("run_id", "progress_file", "client_log", "modules_dump", "server_address")
 # Sources whose changes alter the measurement itself: driver mod, collector plugin and the process setup.
@@ -102,7 +104,8 @@ def pair_key(runner: Runner, client: Client, ac: AntiCheat, plan: dict) -> str:
     bench = runner.bench
     inputs = {
         "plan": {k: v for k, v in plan.items() if k not in _RUN_SPECIFIC},
-        "minecraft": bench.minecraft, "server": bench.server, "client_settings": bench.client,
+        "minecraft": bench.minecraft, "server": bench.server,
+        "client_settings": {k: v for k, v in bench.client.items() if k not in _RUNNER_ONLY_CLIENT_SETTINGS},
         "client": {"jvm_args": client.jvm_args, "adapter": client.adapter, "adapter_options": client.adapter_options,
                    "always_disable": client.always_disable},
         "anticheat": {"plugin": ac.plugin, "flag_sources": ac.flag_sources,
