@@ -1,0 +1,37 @@
+# Benchmark profile for Updated-NoCheatPlus b279: every kick and tempkick command is replaced by the harmless console
+# command "list". NCP fills in all other settings with its defaults on start.
+strings:
+  kickagainst: list
+  kickalive: list
+  kickattackfrequency: list
+  kickbow: list
+  kickbspeed: list
+  kickcaptcha: list
+  kickchat1: list
+  kickchat5: list
+  kickchatfast: list
+  kickchatnormal: list
+  kickcommands: list
+  kickcritical: list
+  kickfastbreak: list
+  kickfastclick: list
+  kickfastconsume: list
+  kickfastheal: list
+  kickfastplace: list
+  kickfly: list
+  kickflyingfrequency: list
+  kickfrequency: list
+  kickgod: list
+  kickillegalblockinteract: list
+  kickillegalrotations: list
+  kickimprobable: list
+  kickinvaliddata: list
+  kickpacketfrequency: list
+  kickpackets: list
+  kickscaffold: list
+  kickselfhit: list
+  kicksuspiciouscombat: list
+  kickvehiclefly: list
+  kickwb: list
+  tempkick1: list
+  tempkick5: list

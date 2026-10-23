@@ -1,0 +1,127 @@
+id = "ncp"
+name = "Updated-NoCheatPlus"
+# Bukkit plugin name; the run is aborted if it is not enabled after server start.
+plugin = "NoCheatPlus"
+# The target bot only stands in as a target; "nocheatplus.checks" exempts it from every check group.
+target_bypass_permissions = ["nocheatplus.checks"]
+
+# Updated-NoCheatPlus has no release for 26.x; its builds come from CodeMC's Jenkins. Build 279 (commit c67e4a4,
+# 29 May 2026) is pinned by its build number. Its component registry covers Minecraft 26.1 up to (excluding) 27.1.
+[download]
+url = "https://ci.codemc.io/job/Updated-NoCheatPlus/job/Updated-NoCheatPlus/279/artifact/target/NoCheatPlus.jar"
+filename = "NoCheatPlus-b279.jar"
+
+# NCP needs a ProtocolLib it supports for its packet-level checks (fight, net); for 26.x only the rolling dev build
+# works. It is cached and pinned per run like every other jar.
+[[dependencies]]
+url = "https://github.com/dmulloy2/ProtocolLib/releases/download/dev-build/ProtocolLib.jar"
+filename = "ProtocolLib.jar"
+
+# NCP has no violation event. Every violation goes through its hook API (NCPHookManager) before NCP processes it,
+# with the check type and the total violation level, so the collector registers a proxy hook for all checks.
+[[flag_sources]]
+type = "callback"
+plugin = "NoCheatPlus"
+interface = "fr.neatmonster.nocheatplus.hooks.NCPHook"
+register = "fr.neatmonster.nocheatplus.hooks.NCPHookManager.addHook"
+register_args = ["enum:fr.neatmonster.nocheatplus.checks.CheckType.ALL", "listener"]
+callback = "onCheckFailure"
+player = "1.getName"
+check = "0"
+vl = "2.getTotalVl"
+
+# Kick commands become a harmless console command; checks, cancels and setbacks stay at their defaults.
+[files]
+"plugins/NoCheatPlus/config.yml" = "ncp/config.yml"
+
+# Stock staff alerts (log actions to in-game chat) of NCP's DefaultConfig: the first "vl>X" threshold per check.
+# NCP additionally delays some log actions by a few violations, which this replay ignores.
+[[default_alerts]]
+group = "SurvivalFly"
+checks = ["moving_survivalfly"]
+alert_after = 100
+by = "vl"
+
+[[default_alerts]]
+group = "CreativeFly"
+checks = ["moving_creativefly"]
+alert_after = 100
+by = "vl"
+
+[[default_alerts]]
+group = "NoFall"
+checks = ["moving_nofall"]
+alert_after = 2
+by = "vl"
+
+[[default_alerts]]
+group = "MorePackets"
+checks = ["moving_morepackets"]
+alert_after = 2
+by = "vl"
+
+[[default_alerts]]
+group = "Passable"
+checks = ["moving_passable"]
+alert_after = 15
+by = "vl"
+
+[[default_alerts]]
+group = "NetMoving"
+checks = ["net_moving"]
+alert_after = 17
+by = "vl"
+
+[[default_alerts]]
+group = "FlyingFrequency"
+checks = ["net_flyingfrequency"]
+alert_after = 20
+by = "vl"
+
+[[default_alerts]]
+group = "AttackFrequency"
+checks = ["net_attackfrequency"]
+alert_after = 10
+by = "vl"
+
+[[default_alerts]]
+group = "Reach"
+checks = ["fight_reach"]
+alert_after = 1
+by = "vl"
+
+[[default_alerts]]
+group = "Critical"
+checks = ["fight_critical"]
+alert_after = 5
+by = "vl"
+
+[[default_alerts]]
+group = "Direction"
+checks = ["fight_direction"]
+alert_after = 2
+by = "vl"
+
+[[default_alerts]]
+group = "Angle"
+checks = ["fight_angle"]
+alert_after = 100
+by = "vl"
+
+[[default_alerts]]
+group = "FightNoSwing"
+checks = ["fight_noswing"]
+alert_after = 10
+by = "vl"
+
+[[default_alerts]]
+group = "Improbable"
+checks = ["combined_improbable"]
+alert_after = 50
+by = "vl"
+
+[[default_alerts]]
+group = "FastConsume"
+checks = ["inventory_fastconsume"]
+alert_after = 2
+by = "vl"

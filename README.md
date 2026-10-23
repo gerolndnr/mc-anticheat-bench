@@ -3,7 +3,7 @@
 Der Benchmark testet AntiCheat-Plugins mit **echten Hack-Clients**. Abgedeckt sind die Bereiche **Movement** und
 **Combat** mit den Clients **Meteor**, **LiquidBounce Nextgen** (inklusive seiner gezielten Grim-Bypass-Modi) und **Wurst**
 gegen die AntiCheats **Grim**, **Intave** (freie Basisversion, ohne Cloud-Checks) und **Spartan** (freie Edition,
-erkennt bis 5 Spieler online; ein Shard hat 2).
+erkennt bis 5 Spieler online; ein Shard hat 2) und **Updated-NoCheatPlus**.
 Weitere Clients, AntiCheats und Szenarien kommen per Konfigurationsdatei dazu.
 
 ## Architektur
@@ -250,7 +250,10 @@ Lege `config/anticheats/<id>.toml` an. Darin stehen:
   (Intave braucht z. B. ProtocolLib)
 - mindestens eine `flag_sources`-Quelle, entweder
   - ein Konsolen-Regex mit den benannten Gruppen `player`, `check` und optional `vl`, oder
-  - `type = "event"` mit `plugin`, `class` und Getter-Ketten wie `player = "getPlayer.getName"`
+  - `type = "event"` mit `plugin`, `class` und Getter-Ketten wie `player = "getPlayer.getName"`, oder
+  - `type = "callback"` für AntiCheats ohne Violation-Event, aber mit Listener-API (z. B. NoCheatPlus' `NCPHook`):
+    `interface`, die statische Registrier-Methode `register` mit `register_args` (`"listener"`, `"enum:Klasse.KONSTANTE"`),
+    die Callback-Methode `callback` und für `player`/`check`/`vl` Argument-Index plus Getter-Kette wie `"1.getName"`
 - optional `[files]` mit Konfigurationen, die vor dem Serverstart kopiert werden
 - `target_bypass_permissions = ["…"]`: die Bypass-Permission(s) des AntiCheats. Der Collector gibt sie beim Join
   ausschließlich dem Ziel-Bot (`target_username`), nie dem Test-Bot. Der Ziel-Bot ist reine Infrastruktur: Ohne
@@ -266,8 +269,8 @@ Lege `config/anticheats/<id>.toml` an. Darin stehen:
   `by = "vl"` gilt stattdessen das gemeldete Violation-Level, für AntiCheats, die Verstöße gewichten (wie Intave)
 
 Wichtig: Für die Detection-Messung sollte der AntiCheat bei **jedem** Verstoß alarmieren und nicht kicken oder
-bannen. Beispiele dafür sind `config/anticheats/grim/punishments.yml`, `config/anticheats/intave/config.yml` und
-`config/anticheats/spartan/checks.yml`.
+bannen. Beispiele dafür sind `config/anticheats/grim/punishments.yml`, `config/anticheats/intave/config.yml`,
+`config/anticheats/spartan/checks.yml` und `config/anticheats/ncp/config.yml`.
 
 ### Neues Szenario
 
