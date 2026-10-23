@@ -164,7 +164,9 @@ der Lauf vom letzten Stand: Vorhandene Jars bleiben, nur neue werden geladen. `r
 **Unveränderte Paare werden nicht neu gemessen.** Jedes Client×AntiCheat-Paar bekommt einen Schlüssel über alles, was
 seine Messung bestimmt: den Trial-Plan (Szenarien, Varianten, Wiederholungen, Seed, Timing), die Prüfsummen der Jars
 von Paper, Client und AntiCheat, die Flag-Quellen und Config-Dateien des AntiCheats, die Server- und Client-Settings
-sowie den Quellcode von Driver-Mod (davon nur der Adapter des eigenen Clients), Collector und `processes.py`. Sauber gemessene Paare (fertig, nicht überlastet,
+sowie die Messversion `[measurement] version` aus `benchmark.toml`. Die wird von Hand erhöht, sobald sich ändert,
+was ein Trial misst (Driver-Mod, Collector, Server-/Client-Setup); neue Clients oder AntiCheats, Runner-Robustheit und
+Auswertung lassen den Cache unberührt. Sauber gemessene Paare (fertig, nicht überlastet,
 legales Spiel unbeeinträchtigt) legt `collect` im Pair-Store ab, einem eigenen Eintrag im Actions-Cache. Der nächste
 Lauf übernimmt Paare mit gleichem Schlüssel von dort, statt Shards für sie zu planen:
 
@@ -238,8 +240,7 @@ haben, plus Varianten, deren Name das AntiCheat nennt (gezielte Bypässe). Absch
    - Sonst schreibst du eine eigene Klasse in `driver-mod/src/main/java/dev/acbench/driver/adapter/`, die
      `CheatClientAdapter` implementiert (Reflection, damit die Mod ohne den Client baut), und registrierst sie in
      `Adapters.java`. Vorhanden sind `MeteorAdapter`, `LiquidBounceAdapter` und `WurstAdapter`. Benenne die Klasse
-     `<Adapter-ID>Adapter.java`: Der Pair-Store zählt für ein Paar nur den Adapter seines eigenen Clients, so misst ein
-     neuer Client die bestehenden Paare nicht neu.
+     `<Adapter-ID>Adapter.java`.
 3. Füge den Client in `benchmark.toml` unter `clients` hinzu. Clients, die keine Fabric-Mods auf derselben
    Minecraft-Version sind, brauchen einen anderen Weg und werden von der Driver-Mod nicht abgedeckt.
 

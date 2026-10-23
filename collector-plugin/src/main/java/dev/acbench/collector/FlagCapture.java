@@ -120,12 +120,28 @@ final class FlagCapture {
 			String playerPath = (String) source.get("player");
 			String checkPath = (String) source.get("check");
 			String vlPath = (String) source.get("vl");
-			// Some anticheats fire their event for every verdict; only_if names the getter that marks a detection.
+			// Some anticheats fire their event for every verdict; only_if decides which ones are detections, either a
+			// boolean getter ("isFlagged") or a comparison ("getProbability>=0.8").
 			String onlyIf = (String) source.get("only_if");
+			// record = true also logs every event as a "signal" (not a flag) with the getters in "fields", e.g. to see
+			// verdict probabilities and when a remote service answers.
+			boolean record = Boolean.TRUE.equals(source.get("record"));
+			Map<?, ?> fields = source.get("fields") instanceof Map<?, ?> m ? m : Map.of();
 			Bukkit.getPluginManager().registerEvent(eventClass, new Listener() {}, EventPriority.MONITOR, (listener, event) -> {
 				if (!eventClass.isInstance(event)) return;
-				if (onlyIf != null && !Boolean.TRUE.equals(resolve(event, onlyIf))) return;
-				flag("event:" + eventClass.getSimpleName(), str(resolve(event, playerPath)), str(resolve(event, checkPath)), str(resolve(event, vlPath)), null);
+				String player = str(resolve(event, playerPath));
+				if (record) {
+					Map<String, Object> data = new LinkedHashMap<>();
+					data.put("source", "event:" + eventClass.getSimpleName());
+					data.put("player", player);
+					data.put("check", str(resolve(event, checkPath)));
+					for (Map.Entry<?, ?> field : fields.entrySet()) {
+						data.put(String.valueOf(field.getKey()), str(resolve(event, String.valueOf(field.getValue()))));
+					}
+					log.write("signal", data);
+				}
+				if (onlyIf != null && !matches(event, onlyIf)) return;
+				flag("event:" + eventClass.getSimpleName(), player, str(resolve(event, checkPath)), str(resolve(event, vlPath)), null);
 			}, plugin, false);
 			plugin.getLogger().info("Listening for anticheat event " + className);
 		} catch (ClassNotFoundException e) {
@@ -193,6 +209,24 @@ final class FlagCapture {
 			return Enum.valueOf((Class<? extends Enum>) Class.forName(path.substring(0, split), true, loader), path.substring(split + 1));
 		}
 		return spec;
+	}
+
+	private static final Pattern COMPARISON = Pattern.compile("^\\s*([\\w.]+)\\s*(>=|<=|>|<|==)\\s*(-?[\\d.]+)\\s*$");
+
+	/** "isFlagged" (true), or a getter chain compared with a number: "getProbability>=0.8". */
+	private static boolean matches(Object event, String condition) {
+		Matcher m = COMPARISON.matcher(condition);
+		if (!m.matches()) return Boolean.TRUE.equals(resolve(event, condition));
+		Object value = resolve(event, m.group(1));
+		if (!(value instanceof Number number)) return false;
+		double actual = number.doubleValue(), limit = Double.parseDouble(m.group(3));
+		return switch (m.group(2)) {
+			case ">=" -> actual >= limit;
+			case "<=" -> actual <= limit;
+			case ">" -> actual > limit;
+			case "<" -> actual < limit;
+			default -> actual == limit;
+		};
 	}
 
 	/** "1.getName" = argument 1, then getName(). */

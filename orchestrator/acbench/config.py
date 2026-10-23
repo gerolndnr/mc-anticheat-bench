@@ -117,6 +117,7 @@ class Benchmark:
     timing: dict[str, Any]
     scoring: dict[str, float]
     parallel: dict[str, Any] = field(default_factory=dict)
+    measurement: dict[str, Any] = field(default_factory=dict)
     clients: dict[str, Client] = field(default_factory=dict)
     anticheats: dict[str, AntiCheat] = field(default_factory=dict)
     scenarios: list[Scenario] = field(default_factory=list)
@@ -218,6 +219,7 @@ def load_benchmark(path: Path) -> Benchmark:
         timing=data.get("timing", {}),
         scoring=data.get("scoring", {"detection": 0.5, "false_positives": 0.35, "mitigation": 0.15}),
         parallel=data.get("parallel", {}),
+        measurement=data.get("measurement", {}),
     )
     if str(bench.client.get("target_username", "BenchTarget")).lower() == str(bench.client.get("username", "BenchBot")).lower():
         raise ValueError(f"{path}: target_username must differ from username, the target bot is exempted from anticheats")

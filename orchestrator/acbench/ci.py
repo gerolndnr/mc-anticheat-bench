@@ -19,7 +19,6 @@ import dataclasses
 import hashlib
 import json
 import shutil
-import subprocess
 import tarfile
 import time
 from pathlib import Path
@@ -56,51 +55,11 @@ def _pack(tar_file: Path, root: Path, paths: list[Path]) -> None:
 _RUNNER_ONLY_CLIENT_SETTINGS = {"timeout_seconds", "max_restarts", "stall_seconds", "max_server_restarts"}
 # Plan fields that differ between runs without changing what is measured.
 _RUN_SPECIFIC = ("run_id", "progress_file", "client_log", "modules_dump", "server_address")
-# Sources whose changes alter the measurement itself: driver mod, collector plugin and the process setup.
-_MEASUREMENT_CODE = ("driver-mod", "collector-plugin", "orchestrator/acbench/processes.py")
-_IGNORED_DIRS = {"build", ".gradle", "run"}
-
-
-def _file_hash(path: Path) -> str:
-    return hashlib.sha256(path.read_bytes()).hexdigest()
-
-
-_ADAPTER_DIR = "driver-mod/src/main/java/dev/acbench/driver/adapter/"
-# Adapters every pair uses: the interface, and NoneAdapter, which drives the target bot.
-_SHARED_ADAPTERS = {"CheatClientAdapter.java", "NoneAdapter.java"}
-
-
-def _counts_for(name: str, adapter: str) -> bool:
-    """Other clients' adapters and the registry that lists them do not change this client's measurement, so adding
-    a client keeps the keys of all existing pairs. A client's own adapter is <Adapter>Adapter.java by convention."""
-    if not name.startswith(_ADAPTER_DIR) or "/" in name[len(_ADAPTER_DIR):]:
-        return True
-    file = name[len(_ADAPTER_DIR):]
-    return file in _SHARED_ADAPTERS or file.lower() == f"{adapter.lower()}adapter.java"
-
-
-def _code_hash(root: Path, adapter: str) -> str:
-    """Hash of the measurement sources rather than of the built jars, which Gradle does not build byte-identically.
-    Only files under version control count, so build output never changes the key."""
-    try:
-        listed = subprocess.run(["git", "ls-files", "-z", "--", *_MEASUREMENT_CODE], cwd=root, check=True,
-                                capture_output=True).stdout.decode().split("\0")
-        files = sorted(root / name for name in listed if name)
-    except (OSError, subprocess.CalledProcessError):
-        files = sorted(p for entry in _MEASUREMENT_CODE for p in ([root / entry] if (root / entry).is_file()
-                       else (root / entry).rglob("*")) if p.is_file() and not _IGNORED_DIRS & set(p.relative_to(root).parts))
-    digest = hashlib.sha256()
-    for path in files:
-        if path.exists() and _counts_for(path.relative_to(root).as_posix(), adapter):
-            digest.update(str(path.relative_to(root)).encode() + b"\0" + path.read_bytes() + b"\0")
-    return digest.hexdigest()
-
-
 def pair_key(runner: Runner, client: Client, ac: AntiCheat, plan: dict) -> str:
     """Everything that decides one pair's measurement: the trial list and timing (the plan without run-specific
-    paths), the exact jars of server, client and anticheat, the anticheat's flag sources, config files and target bot
-    exemption, the server and client settings and the measurement code. Analysis-only settings (scoring, default
-    alerts) are left out, so changing them re-analyzes instead of re-measuring."""
+    paths), the exact jars of server, client and anticheat, the anticheat's flag sources and config files, the server
+    and client settings and the benchmark's measurement version. Analysis-only settings (scoring, default alerts,
+    known issues) and runner-only settings are left out, so changing them re-analyzes instead of re-measuring."""
     bench = runner.bench
     inputs = {
         "plan": {k: v for k, v in plan.items() if k not in _RUN_SPECIFIC},
@@ -112,7 +71,8 @@ def pair_key(runner: Runner, client: Client, ac: AntiCheat, plan: dict) -> str:
                       "target_bypass_permissions": ac.target_bypass_permissions,
                       "files": {target: _file_hash(source) for target, source in sorted(ac.files.items())}},
         "jars": {jar.name: _file_hash(jar) for jar in [runner.paper_jar, *runner.client_jars[client.id], *runner.ac_jars[ac.id]]},
-        "code": _code_hash(bench.root, client.adapter),
+        # Bumped by hand whenever the benchmark changes what a trial measures (see [measurement] in benchmark.toml).
+        "measurement_version": bench.measurement.get("version", 0),
     }
     return hashlib.sha256(json.dumps(inputs, sort_keys=True, default=str).encode()).hexdigest()[:24]
 

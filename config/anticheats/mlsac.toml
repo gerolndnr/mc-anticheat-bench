@@ -26,21 +26,27 @@ url = "https://github.com/SoMax1soft/mls-network-plugin/releases/download/2.0.9/
 filename = "MLSAC-2.0.9-java21.jar"
 sha256 = "26dce7167691548b1007aeed8d54c019f6c341ee4e3baf6fa5b5d47229ea2c34"
 
-# ModelCheckEvent reports every verdict of the Pro and Mini models; only those with isFlagged() count.
+# ModelCheckEvent reports every verdict of the Pro and Mini models. A verdict counts as a detection at MLSAC's alert
+# threshold (0.80, as its startup line reports) instead of by isFlagged(): no flagged event arrived in gh-18 although
+# the MLSAC dashboard listed alerts at 99 %. record = true keeps every verdict as a signal (probability, flagged,
+# arrival time) to see why, and how long after a fight the cloud answers.
 [[flag_sources]]
 type = "event"
 plugin = "MLSAC"
 class = "italy.mlsac.net.api.bukkit.ModelCheckEvent"
-only_if = "isFlagged"
+only_if = "getProbability>=0.8"
+record = true
+fields = { probability = "getProbability", flagged = "isFlagged", buffer = "getBuffer" }
 player = "getPlayerName"
 check = "getModel"
-vl = "getBuffer"
+vl = "getProbability"
 
 # The Ultra model reports flags through its own event.
 [[flag_sources]]
 type = "event"
 plugin = "MLSAC"
 class = "italy.mlsac.net.api.bukkit.UltraFlagEvent"
+record = true
 player = "getPlayerName"
 check = "getClass.getSimpleName"
 

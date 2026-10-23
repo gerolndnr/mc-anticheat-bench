@@ -31,6 +31,13 @@ stall_seconds = 300       # a running client without a completed trial for this 
 max_server_restarts = 3   # server restarts per shard after kicks outside a trial (broken server-side state)
 timeout_seconds = 3600      # minimum per client × anticheat; grows to twice the plan estimate for large plans
 
+[measurement]
+# Part of every pair key in the pair store (CI): pairs measured under another version are measured again.
+# Bump it whenever a change alters what a trial measures or records: driver mod (inputs, adapters), collector plugin
+# (metrics, flag capture), server or client setup in processes.py, trial timing semantics. Not for new clients or
+# anticheats, runner robustness, analysis or reports.
+version = 1
+
 [parallel]
 # Parallel workers; each runs its own server, bot and target bot on port + worker index.
 # "auto" = one worker per ~3 CPU cores and ~7 GB RAM. Every run reports client and server tick rates and marks
