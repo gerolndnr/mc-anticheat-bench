@@ -19,11 +19,12 @@ known_issues = [
     "Verdicts come from the MLSAC cloud: results depend on the models deployed there at the time of the run and on the plan of the licence key.",
 ]
 
-# Version 2.0.3 from Hangar (supports 1.16 to 26.3).
+# Version 2.0.9 from its GitHub releases (Hangar only has 2.0.3). The API events used below exist since 2.0.8, and
+# since 2.0.9 MLSAC reads Paper's "26.3.build.214-stable" as 26.3 instead of falling back to its 1.16.5 rules.
 [download]
-url = "https://hangarcdn.papermc.io/plugins/SoMax1soft/mlsac/versions/2.0.3/PAPER/MLSAC-2.0.3-java21.jar"
-filename = "MLSAC-2.0.3-java21.jar"
-sha256 = "fa27b9a717723cb6c9e89354e47ab0cc9ae77d0ed56735c63653c07820b875fd"
+url = "https://github.com/SoMax1soft/mls-network-plugin/releases/download/2.0.9/MLSAC-2.0.9-java21.jar"
+filename = "MLSAC-2.0.9-java21.jar"
+sha256 = "26dce7167691548b1007aeed8d54c019f6c341ee4e3baf6fa5b5d47229ea2c34"
 
 # ModelCheckEvent reports every verdict of the Pro and Mini models; only those with isFlagged() count.
 [[flag_sources]]

@@ -1,4 +1,4 @@
-# Benchmark profile for MLSAC 2.0.3. ${MLSAC_API_KEY} is filled in from the CI secret when the server is prepared;
+# Benchmark profile for MLSAC 2.0.9. ${MLSAC_API_KEY} is filled in from the CI secret when the server is prepared;
 # the key never ends up in the results. Everything else (models, penalties, alerts) comes from the account's preset
 # on mlsac.net.
 language: en
