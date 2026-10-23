@@ -52,6 +52,13 @@ vl = "getProbability"
 [[flag_sources]]
 type = "command"
 
+# With "Also send to console" on (alert settings on mlsac.net), MLSAC prints its staff alerts to the console. Their text
+# is a per-account template, so this matches any line with the bot's name (client.username) and a percentage, the
+# probability every alert template shows. Only MLSAC runs on these servers, nothing else prints such lines.
+[[flag_sources]]
+type = "log"
+pattern = '(?<player>BenchBot)\b.*?(?<vl>\d{1,3}(?:[.,]\d+)?)\s*%'
+
 # The Ultra model reports flags through its own event.
 [[flag_sources]]
 type = "event"
