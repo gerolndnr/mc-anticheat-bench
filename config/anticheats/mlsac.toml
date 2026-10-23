@@ -1,0 +1,47 @@
+id = "mlsac"
+name = "MLSAC"
+# Bukkit plugin name; the run is aborted if it is not enabled after server start.
+plugin = "MLSAC"
+target_bypass_permissions = ["mlsac.bypass"]
+
+# MLSAC only checks combat (KillAura, aim assist, triggerbot, reach, hits through walls), so movement scenarios do not
+# run against it.
+categories = ["combat"]
+
+# Its models run in the MLSAC cloud: the plugin sends combat feature windows there and gets verdicts back. It needs a
+# licence key from mlsac.net (a free plan exists), taken from the MLSAC_API_KEY secret; without it MLSAC is skipped.
+# Penalties (suppression, flag ladder, bans) are configured per account on mlsac.net, not in the plugin.
+secret_env = ["MLSAC_API_KEY"]
+# Cloud verdicts can change whenever the models are updated, so its pairs are measured every run.
+reuse = false
+
+known_issues = [
+    "Verdicts come from the MLSAC cloud: results depend on the models deployed there at the time of the run and on the plan of the licence key.",
+]
+
+# Version 2.0.3 from Hangar (supports 1.16 to 26.3).
+[download]
+url = "https://hangarcdn.papermc.io/plugins/SoMax1soft/mlsac/versions/2.0.3/PAPER/MLSAC-2.0.3-java21.jar"
+filename = "MLSAC-2.0.3-java21.jar"
+sha256 = "fa27b9a717723cb6c9e89354e47ab0cc9ae77d0ed56735c63653c07820b875fd"
+
+# ModelCheckEvent reports every verdict of the Pro and Mini models; only those with isFlagged() count.
+[[flag_sources]]
+type = "event"
+plugin = "MLSAC"
+class = "italy.mlsac.net.api.bukkit.ModelCheckEvent"
+only_if = "isFlagged"
+player = "getPlayerName"
+check = "getModel"
+vl = "getBuffer"
+
+# The Ultra model reports flags through its own event.
+[[flag_sources]]
+type = "event"
+plugin = "MLSAC"
+class = "italy.mlsac.net.api.bukkit.UltraFlagEvent"
+player = "getPlayerName"
+check = "getClass.getSimpleName"
+
+[files]
+"plugins/MLSAC/config.yml" = "mlsac/config.yml"

@@ -117,7 +117,15 @@ class Server:
         # JSON is valid YAML, so Bukkit reads this as its config.yml.
         (plugins / "AcBenchCollector" / "config.yml").write_text(json.dumps(collector_cfg, indent=2))
         for target, source in self.ac.files.items():
-            copy(source, self.dir / target)
+            if self.ac.secret_env:
+                # Secrets only ever reach the server folder, never the run's results or logs.
+                text = Path(source).read_text()
+                for name in self.ac.secret_env:
+                    text = text.replace("${" + name + "}", os.environ.get(name, ""))
+                (self.dir / target).parent.mkdir(parents=True, exist_ok=True)
+                (self.dir / target).write_text(text)
+            else:
+                copy(source, self.dir / target)
 
     def start(self, timeout: float = 300) -> None:
         java = self.bench.server.get("java") or os.environ.get("ACBENCH_JAVA", "java")

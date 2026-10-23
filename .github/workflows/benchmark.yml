@@ -35,6 +35,8 @@ env:
   RUN_ID: gh-${{ github.run_number }}
   # Live log lines instead of one block when a step ends (and none at all when a stuck job is cancelled).
   PYTHONUNBUFFERED: "1"
+  # Licence keys of anticheats that need one (secret_env in config/anticheats); an unset secret skips that anticheat.
+  MLSAC_API_KEY: ${{ secrets.MLSAC_API_KEY }}
   INPUT_CLIENTS: ${{ inputs.clients }}
   INPUT_ANTICHEATS: ${{ inputs.anticheats }}
   INPUT_SCENARIOS: ${{ inputs.scenarios }}

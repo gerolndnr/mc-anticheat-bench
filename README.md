@@ -3,7 +3,8 @@
 Der Benchmark testet AntiCheat-Plugins mit **echten Hack-Clients**. Abgedeckt sind die Bereiche **Movement** und
 **Combat** mit den Clients **Meteor**, **LiquidBounce Nextgen** (inklusive seiner gezielten Grim-Bypass-Modi) und **Wurst**
 gegen die AntiCheats **Grim**, **Intave** (freie Basisversion, ohne Cloud-Checks) und **Spartan** (freie Edition,
-erkennt bis 5 Spieler online; ein Shard hat 2) und **Updated-NoCheatPlus**.
+erkennt bis 5 Spieler online; ein Shard hat 2), **Updated-NoCheatPlus** und **MLSAC** (KI-Combat-AntiCheat mit
+Cloud-Bewertung, braucht einen Lizenzschlüssel, siehe unten).
 Weitere Clients, AntiCheats und Szenarien kommen per Konfigurationsdatei dazu.
 
 ## Architektur
@@ -175,6 +176,11 @@ Lauf übernimmt Paare mit gleichem Schlüssel von dort, statt Shards für sie zu
 Der Report nennt übernommene Paare unter „Run health“ („reused from gh-…“). `remeasure` misst alles neu. Der Store
 behält pro Paar die zwei neuesten Schlüssel; der Actions-Cache löscht ihn nach 7 Tagen ohne Lauf.
 
+**Lizenzschlüssel (MLSAC).** MLSAC braucht einen Schlüssel von mlsac.net (es gibt einen kostenlosen Tarif). Lege ihn
+als Repository-Secret `MLSAC_API_KEY` an (`gh secret set MLSAC_API_KEY`). Strafen stellt MLSAC pro Account auf
+mlsac.net ein: Für den Benchmark sollte das Standard-Preset nur alarmieren und nicht kicken oder bannen. Ohne Secret
+läuft der Benchmark ohne MLSAC.
+
 ### Live-Dashboard
 
 ```sh
@@ -261,6 +267,16 @@ Lege `config/anticheats/<id>.toml` an. Darin stehen:
   seine Treffer im Velocity-Szenario verwerfen. Die Permission wird bei Join-Priorität `LOWEST` gesetzt, also bevor
   ein AntiCheat sie beim Join liest (Intave liest sie nur dort). Bisher: Grim `grim.exempt`, Intave `intave.bypass`,
   Spartan `spartan.bypass`. Ob sie greift, zeigt „Target bot flags“ im Report (sollte 0 sein).
+- optional `categories = ["combat"]`: nur Szenarien dieser Kategorien laufen gegen den AntiCheat (für reine
+  Combat- oder Movement-AntiCheats)
+- optional `secret_env = ["NAME"]`: Umgebungsvariablen, die `${NAME}` in den `[files]` beim Kopieren ersetzen, z. B. ein
+  Lizenzschlüssel aus einem GitHub-Secret. Fehlt eine, wird der AntiCheat übersprungen. Der Schlüssel landet nur im
+  Serverordner, nie in den Ergebnissen.
+- optional `reuse = false`: für AntiCheats mit Cloud-Bewertung, deren Ergebnisse sich ohne neue Jar ändern können. Ihre
+  Paare werden in jedem Lauf gemessen statt aus dem Pair-Store übernommen.
+- bei `type = "event"` optional `only_if = "isFlagged"`: Getter, der `true` liefern muss, für Events, die auch
+  Ergebnisse ohne Erkennung melden
+- bei `url`-Downloads optional `sha256`: Prüfsumme der Jar
 - optional `known_issues = ["…"]`: nachgewiesene Probleme des AntiCheats selbst (nicht des Benchmarks) auf der
   getesteten Version. Der Report führt sie neben den Zahlen auf; sie ändern nichts an der Messung.
 - optional `[[default_alerts]]` (`group`, `checks`, `alert_after`) und `[default_alert_aliases]`: die

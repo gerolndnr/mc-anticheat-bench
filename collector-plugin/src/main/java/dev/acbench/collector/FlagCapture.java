@@ -120,8 +120,11 @@ final class FlagCapture {
 			String playerPath = (String) source.get("player");
 			String checkPath = (String) source.get("check");
 			String vlPath = (String) source.get("vl");
+			// Some anticheats fire their event for every verdict; only_if names the getter that marks a detection.
+			String onlyIf = (String) source.get("only_if");
 			Bukkit.getPluginManager().registerEvent(eventClass, new Listener() {}, EventPriority.MONITOR, (listener, event) -> {
 				if (!eventClass.isInstance(event)) return;
+				if (onlyIf != null && !Boolean.TRUE.equals(resolve(event, onlyIf))) return;
 				flag("event:" + eventClass.getSimpleName(), str(resolve(event, playerPath)), str(resolve(event, checkPath)), str(resolve(event, vlPath)), null);
 			}, plugin, false);
 			plugin.getLogger().info("Listening for anticheat event " + className);

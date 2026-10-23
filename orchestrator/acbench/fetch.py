@@ -1,6 +1,7 @@
 """Downloads server, client and anticheat jars into cache/, reusing what is already there."""
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -107,7 +108,11 @@ def anticheat(bench: Benchmark, ac: AntiCheat, cache: Path, force: bool = False)
                              dl.get("version"), dl.get("file_regex", r".*\.jar$"), force))
     elif "url" in dl:
         name = dl.get("filename", Path(urllib.parse.urlparse(dl["url"]).path).name)
-        jars.append(_download(dl["url"], cache / "anticheats" / ac.id / name, force))
+        jar = _download(dl["url"], cache / "anticheats" / ac.id / name, force)
+        if dl.get("sha256") and hashlib.sha256(jar.read_bytes()).hexdigest() != dl["sha256"].lower():
+            jar.unlink()
+            raise RuntimeError(f"anticheat {ac.id}: {name} does not match the sha256 in its config")
+        jars.append(jar)
     for dep in ac.dependencies:
         deps_dir = cache / "anticheats" / ac.id / "deps"
         if "modrinth" in dep:

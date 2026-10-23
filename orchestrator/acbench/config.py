@@ -1,6 +1,7 @@
 """Loads benchmark.toml and the client / anticheat / scenario definitions under config/."""
 from __future__ import annotations
 
+import os
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -66,6 +67,20 @@ class AntiCheat:
     known_issues: list[str] = field(default_factory=list)
     # Permissions that exempt the target bot (benchmark infrastructure) from the anticheat; never given to the test bot.
     target_bypass_permissions: list[str] = field(default_factory=list)
+    # Environment variables (e.g. a licence key from a CI secret) that replace ${NAME} in the [files] when they are
+    # copied; without them the anticheat is skipped.
+    secret_env: list[str] = field(default_factory=list)
+    # False for anticheats whose verdicts come from a remote service that can change between runs: their pairs are
+    # measured every run instead of being taken from the pair store.
+    reusable: bool = True
+    # Scenario categories this anticheat checks at all (empty = every category), e.g. ["combat"].
+    categories: list[str] = field(default_factory=list)
+
+    def missing_secrets(self) -> list[str]:
+        return [name for name in self.secret_env if not os.environ.get(name)]
+
+    def applies_to(self, trial: dict) -> bool:
+        return not self.categories or trial.get("category") in self.categories
 
 
 @dataclass
@@ -155,6 +170,9 @@ def load_anticheat(path: Path) -> AntiCheat:
         dependencies=list(data.get("dependencies", [])),
         known_issues=[str(i) for i in data.get("known_issues", [])],
         target_bypass_permissions=[str(p) for p in data.get("target_bypass_permissions", [])],
+        secret_env=[str(n) for n in data.get("secret_env", [])],
+        reusable=bool(data.get("reuse", True)),
+        categories=[str(c) for c in data.get("categories", [])],
     )
 
 

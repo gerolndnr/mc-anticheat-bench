@@ -345,7 +345,10 @@ class Runner:
 
             def submit_anticheats(client: ClientConfig) -> None:
                 for ac in others:
-                    trials = all_trials[client.id]
+                    if ac.missing_secrets():
+                        print(f"[run] {ac.id}: skipped, secret {', '.join(ac.missing_secrets())} is not set")
+                        continue
+                    trials = [t for t in all_trials[client.id] if ac.applies_to(t)]
                     if reference and bench.timing.get("screen_variants", True):
                         trials = _screen(self.run_dir, client.id, ac.id, trials)
                     for job in self.make_jobs(client, ac, trials):

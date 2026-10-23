@@ -180,18 +180,24 @@ def matrix(bench: Benchmark, run_id: str, stage: str, artifacts: dict[str, Path]
         acs = [reference] if reference else []
     else:
         acs = [ac for ac in bench.anticheats.values() if ac.id != REFERENCE_AC]
+    for ac in list(acs):
+        if ac.missing_secrets():
+            print(f"[ci] {ac.id}: skipped, secret {', '.join(ac.missing_secrets())} is not set")
+            acs.remove(ac)
     pairs, written = {}, [runner.run_dir / "run.json"]
     for client in bench.clients.values():
         all_trials = build_trials(bench, client, scenario_filter)
         for ac in acs:
-            trials = all_trials
+            trials = [t for t in all_trials if ac.applies_to(t)]
             if ac is not reference and reference and bench.timing.get("screen_variants", True):
                 trials = _screen(runner.run_dir, client.id, ac.id, trials)
             out = runner.write_pair(client, ac, trials)
             plan = json.loads((out / "plan.json").read_text())
             pair = f"{client.id}/{ac.id}"
-            keys[pair] = pair_key(runner, client, ac, plan)
-            found = store.get(client.id, ac.id, keys[pair]) if store else None
+            found = None
+            if ac.reusable:
+                keys[pair] = pair_key(runner, client, ac, plan)
+                found = store.get(client.id, ac.id, keys[pair]) if store else None
             if found:
                 tar_file_found, info = found
                 shutil.rmtree(out)
