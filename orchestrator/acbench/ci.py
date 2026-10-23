@@ -293,10 +293,11 @@ def collect(run_dir: Path, tar_files: list[Path], store: PairStore | None = None
     if store:
         for pair, key in meta.get("pair_keys", {}).items():
             info = result["runs"].get(pair) or {}
-            # Only clean measurements are worth repeating forever: finished, every trial measured, not overloaded,
-            # legal play unimpaired.
-            clean = (info.get("done") and not info.get("unmeasured") and not (info.get("quality") or {}).get("overloaded")
-                     and not (info.get("legal_play") or {}).get("invalid"))
+            # Only clean measurements are worth repeating forever: finished, every trial measured, not overloaded.
+            # Legal play held back by the anticheat is a result about the anticheat, not a broken measurement, so
+            # such pairs are kept as well (measuring again only repeats it).
+            clean = (info.get("done") and not info.get("unmeasured")
+                     and not (info.get("quality") or {}).get("overloaded"))
             if pair in reused or not clean:
                 continue
             client_id, ac_id = pair.split("/", 1)

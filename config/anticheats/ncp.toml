@@ -5,6 +5,10 @@ plugin = "NoCheatPlus"
 # The target bot only stands in as a target; "nocheatplus.checks" exempts it from every check group.
 target_bypass_permissions = ["nocheatplus.checks"]
 
+known_issues = [
+    "On Minecraft 26.3 it sets back legal movement: sprint-jumping (speed and timer baselines), sprinting through water (jesus baselines) and jumping up stairs (step baseline) were held back in 4-6 of 16 baselines with every client (gh-16).",
+]
+
 # Updated-NoCheatPlus has no release for 26.x; its builds come from CodeMC's Jenkins. Build 279 (commit c67e4a4,
 # 29 May 2026) is pinned by its build number. Its component registry covers Minecraft 26.1 up to (excluding) 27.1.
 [download]
