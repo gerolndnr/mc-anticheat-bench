@@ -15,13 +15,10 @@ secret_env = ["MLSAC_API_KEY"]
 # Cloud verdicts can change whenever the models are updated, so its pairs are measured every run.
 reuse = false
 
-# The cloud answers after a fight is over (alerts in the MLSAC dashboard came ~25-30 s after the trial), so the bot
-# stays on the server for 40 s after every trial and flags count until then; otherwise they would land in the next
-# trial, often a legal baseline.
-grace_ticks = 800
-
 known_issues = [
-    "Verdicts come from the MLSAC cloud: results depend on the models deployed there at the time of the run and on the plan of the licence key.",
+    "Verdicts come from the MLSAC cloud: results depend on the models deployed there at the time of the run and on the plan of the licence key (here only the Pro model).",
+    "Its Aim-AI flags the scripted aim of the benchmark's legal baselines (autoclicker, criticals), which snaps perfectly onto the target: these false positives say more about the bot than about MLSAC.",
+    "Its API events (ModelCheckEvent, UltraFlagEvent) never fired in these runs; detections are taken from its console alerts instead.",
 ]
 
 # Version 2.0.9 from its GitHub releases (Hangar only has 2.0.3). The API events used below exist since 2.0.8, and
@@ -52,12 +49,12 @@ vl = "getProbability"
 [[flag_sources]]
 type = "command"
 
-# With "Also send to console" on (alert settings on mlsac.net), MLSAC prints its staff alerts to the console. Their text
-# is a per-account template, so this matches any line with the bot's name (client.username) and a percentage, the
-# probability every alert template shows. Only MLSAC runs on these servers, nothing else prints such lines.
+# With "Also send to console" on (alert settings on mlsac.net), MLSAC prints every alert to the console, e.g.
+# "▍ MLSAC [Pro] BenchBot Failed check (Aim-Ai: 99.8%) (Buffer: 17.5)". They arrive during the trial (first flag
+# 2-5 s after its start in gh-22). This is the source that actually delivers MLSAC's detections.
 [[flag_sources]]
 type = "log"
-pattern = '(?<player>BenchBot)\b.*?(?<vl>\d{1,3}(?:[.,]\d+)?)\s*%'
+pattern = 'MLSAC \[(?<model>[^\]]+)\] (?<player>[A-Za-z0-9_]{3,16}) Failed check \((?<check>[^:()]+): (?<vl>[0-9.,]+)%\)'
 
 # The Ultra model reports flags through its own event.
 [[flag_sources]]
@@ -70,6 +67,3 @@ check = "getClass.getSimpleName"
 
 [files]
 "plugins/MLSAC/config.yml" = "mlsac/config.yml"
-
-[timing]
-cooldown_ticks = 800

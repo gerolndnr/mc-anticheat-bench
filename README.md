@@ -180,9 +180,9 @@ behält pro Paar die zwei neuesten Schlüssel; der Actions-Cache löscht ihn nac
 
 **Lizenzschlüssel (MLSAC).** MLSAC braucht einen Schlüssel von mlsac.net (es gibt einen kostenlosen Tarif). Lege ihn
 als Repository-Secret `MLSAC_API_KEY` an (`gh secret set MLSAC_API_KEY`). Strafen stellt MLSAC pro Account auf
-mlsac.net ein. Für den Benchmark darf das Preset weder kicken noch bannen, und jede Stufe der Suppression-Leiter führt
-als einzige Aktion den Konsolenbefehl `acbench flag {PLAYER} mlsac {VL}` aus: MLSAC 2.0.9 meldet Flags nicht über seine
-API-Events, der Befehl ist der Weg, auf dem der Benchmark sie sieht. Ohne Secret
+mlsac.net ein. Für den Benchmark darf das Preset weder kicken noch bannen, die Suppression-Leiter ist leer (ihre Effekte
+reichen sonst minutenlang in spätere Trials hinein), und in den Alert-Einstellungen ist „Also send to console“ an:
+MLSAC 2.0.9 meldet Erkennungen nicht über seine API-Events, der Benchmark liest seine Konsolen-Alerts. Ohne Secret
 läuft der Benchmark ohne MLSAC.
 
 ### Live-Dashboard
