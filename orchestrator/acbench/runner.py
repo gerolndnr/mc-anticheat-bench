@@ -401,10 +401,22 @@ class Runner:
             self._start(game)
             # The limit only guards against a stuck client, so it grows with the plan.
             deadline = time.time() + max(float(bench.client.get("timeout_seconds", 3600)), 2 * estimate + 600)
+            # A client that is alive but makes no progress (e.g. locked out of the server and sitting on the
+            # disconnect screen) is restarted like one that exited, so it cannot hold the shard until the deadline.
+            stall_seconds = float(bench.client.get("stall_seconds", 300))
+            seen_progress, progress_at = last_progress, time.time()
             while not _events_done(events):
                 if time.time() > deadline:
                     status["error"] = "timeout"
                     break
+                progress = _progress(out / "progress.json")
+                if progress != seen_progress:
+                    seen_progress, progress_at = progress, time.time()
+                elif game.running() and time.time() - progress_at > stall_seconds:
+                    print(f"[run] {tag}: no trial completed for {stall_seconds:.0f} s, stopping the client")
+                    status["stalls"] = status.get("stalls", 0) + 1
+                    game.stop()
+                    progress_at = time.time()
                 if target and not target.running():
                     print(f"[run] {tag}: target bot exited, restarting it")
                     self._start(target)
@@ -414,10 +426,10 @@ class Runner:
                     stalled_restarts = 0 if progress > last_progress else stalled_restarts + 1
                     last_progress = progress
                     if stalled_restarts > int(bench.client.get("max_restarts", 3)):
-                        status["error"] = "client kept exiting without progress"
+                        status["error"] = "client kept stopping without progress"
                         break
                     status["restarts"] += 1
-                    print(f"[run] {tag}: client exited early, restart {status['restarts']} (progress is kept)")
+                    print(f"[run] {tag}: client stopped early, restart {status['restarts']} (progress is kept)")
                     live.shard(client.id, ac.id, job.shard, "running", restarts=status["restarts"])
                     time.sleep(5)
                     self._start(game)

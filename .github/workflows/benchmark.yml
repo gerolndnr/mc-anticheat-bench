@@ -33,6 +33,8 @@ on:
 
 env:
   RUN_ID: gh-${{ github.run_number }}
+  # Live log lines instead of one block when a step ends (and none at all when a stuck job is cancelled).
+  PYTHONUNBUFFERED: "1"
   INPUT_CLIENTS: ${{ inputs.clients }}
   INPUT_ANTICHEATS: ${{ inputs.anticheats }}
   INPUT_SCENARIOS: ${{ inputs.scenarios }}
@@ -140,6 +142,12 @@ jobs:
           ./bench ci shard --run-id "$RUN_ID" --clients "${{ matrix.client }}" --anticheats "${{ matrix.anticheat }}" \
             --shard ${{ matrix.shard }} --of ${{ matrix.of }} \
             --tar "shard-${{ matrix.client }}-${{ matrix.anticheat }}-${{ matrix.shard }}.tgz"
+      # A shard that failed or was cancelled before packing still hands over what it measured, for diagnosis.
+      - if: always()
+        run: |
+          tar_file="shard-${{ matrix.client }}-${{ matrix.anticheat }}-${{ matrix.shard }}.tgz"
+          unit="results/$RUN_ID/${{ matrix.client }}/${{ matrix.anticheat }}/shards/s${{ matrix.shard }}"
+          [ -f "$tar_file" ] || [ ! -d "$unit" ] || tar czf "$tar_file" "$unit"
       - if: always()
         uses: actions/upload-artifact@v4
         with:
@@ -221,6 +229,12 @@ jobs:
           ./bench ci shard --run-id "$RUN_ID" --clients "${{ matrix.client }}" --anticheats "${{ matrix.anticheat }}" \
             --shard ${{ matrix.shard }} --of ${{ matrix.of }} \
             --tar "shard-${{ matrix.client }}-${{ matrix.anticheat }}-${{ matrix.shard }}.tgz"
+      # A shard that failed or was cancelled before packing still hands over what it measured, for diagnosis.
+      - if: always()
+        run: |
+          tar_file="shard-${{ matrix.client }}-${{ matrix.anticheat }}-${{ matrix.shard }}.tgz"
+          unit="results/$RUN_ID/${{ matrix.client }}/${{ matrix.anticheat }}/shards/s${{ matrix.shard }}"
+          [ -f "$tar_file" ] || [ ! -d "$unit" ] || tar czf "$tar_file" "$unit"
       - if: always()
         uses: actions/upload-artifact@v4
         with:

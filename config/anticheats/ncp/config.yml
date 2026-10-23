@@ -1,5 +1,12 @@
 # Benchmark profile for Updated-NoCheatPlus b279: every kick and tempkick command is replaced by the harmless console
-# command "list". NCP fills in all other settings with its defaults on start.
+# command "list", and the chat checks are off. NCP fills in all other settings with its defaults on start.
+#
+# The chat group only touches the benchmark's own control channel, no scenario: its relog check refuses logins less
+# than 5 s after the last quit (the bot rejoins before every trial within ~0.5 s), and its command check limits the
+# /acbench commands that mark trial boundaries to 3 per 18 ticks. With them on, the bot was locked out after two trials.
+checks:
+  chat:
+    active: false
 strings:
   kickagainst: list
   kickalive: list

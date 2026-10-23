@@ -30,7 +30,8 @@ player = "1.getName"
 check = "0"
 vl = "2.getTotalVl"
 
-# Kick commands become a harmless console command; checks, cancels and setbacks stay at their defaults.
+# Kick commands become a harmless console command and the chat checks (relog, command spam) are off, since they only
+# hit the benchmark's rejoins and /acbench commands; all other checks, cancels and setbacks stay at their defaults.
 [files]
 "plugins/NoCheatPlus/config.yml" = "ncp/config.yml"
 

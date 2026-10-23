@@ -27,6 +27,7 @@ target_username = "BenchTarget"
 target_memory = "1500M"
 headless = true           # run under xvfb-run
 max_restarts = 3          # restarts in a row without progress before the run is aborted
+stall_seconds = 300       # a running client without a completed trial for this long is restarted
 timeout_seconds = 3600      # minimum per client × anticheat; grows to twice the plan estimate for large plans
 
 [parallel]
