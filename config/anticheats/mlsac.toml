@@ -15,6 +15,11 @@ secret_env = ["MLSAC_API_KEY"]
 # Cloud verdicts can change whenever the models are updated, so its pairs are measured every run.
 reuse = false
 
+# The cloud answers after a fight is over (alerts in the MLSAC dashboard came ~25-30 s after the trial), so the bot
+# stays on the server for 40 s after every trial and flags count until then; otherwise they would land in the next
+# trial, often a legal baseline.
+grace_ticks = 800
+
 known_issues = [
     "Verdicts come from the MLSAC cloud: results depend on the models deployed there at the time of the run and on the plan of the licence key.",
 ]
@@ -41,6 +46,12 @@ player = "getPlayerName"
 check = "getModel"
 vl = "getProbability"
 
+# MLSAC 2.0.9 fires the events above for none of its verdicts here (gh-20: cloud answers, zero events), so the flags
+# come from its own suppression ladder instead: on mlsac.net, every ladder step runs the console command
+# "acbench flag {PLAYER} mlsac {VL}", which the collector turns into a flag.
+[[flag_sources]]
+type = "command"
+
 # The Ultra model reports flags through its own event.
 [[flag_sources]]
 type = "event"
@@ -52,3 +63,6 @@ check = "getClass.getSimpleName"
 
 [files]
 "plugins/MLSAC/config.yml" = "mlsac/config.yml"
+
+[timing]
+cooldown_ticks = 800

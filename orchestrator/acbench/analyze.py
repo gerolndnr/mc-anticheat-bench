@@ -439,11 +439,14 @@ def compute_run(run_dir: Path) -> tuple[dict, list[dict]]:
     for client_dir in sorted(p for p in run_dir.iterdir() if p.is_dir()):
         for ac_dir in sorted(p for p in client_dir.iterdir() if (p / "plan.json").exists()):
             rules = load_default_rules(ac_dir, ac_dir.name)
+            saved = ac_dir / "anticheat.json"
+            # An anticheat whose verdicts arrive late can widen the window in which flags still count for a trial.
+            grace = (json.loads(saved.read_text()).get("grace_ticks") if saved.exists() else None) or meta.get("grace_ticks", 40)
             # Parallel runs split a client × anticheat run into shards, each with its own server and event log.
             units = sorted(p.parent for p in ac_dir.glob("shards/*/plan.json")) or [ac_dir]
             pair_rows, unit_infos = [], []
             for unit in units:
-                r, info = trial_rows(unit, client_dir.name, ac_dir.name, meta.get("grace_ticks", 40), ignore, rules)
+                r, info = trial_rows(unit, client_dir.name, ac_dir.name, grace, ignore, rules)
                 pair_rows.extend(r)
                 unit_infos.append(info)
             rows.extend(pair_rows)

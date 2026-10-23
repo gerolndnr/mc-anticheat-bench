@@ -27,6 +27,8 @@ import org.bukkit.plugin.Plugin;
  *       matched against every console line. Works for almost every anticheat.</li>
  *   <li>{@code event}: a Bukkit event class of the anticheat's API plus getter chains such as
  *       {@code getPlayer.getName}, read via reflection so the collector needs no compile dependency.</li>
+ *   <li>{@code command}: the anticheat runs "acbench flag <player> [check] [vl]" from the console, e.g. as a ladder
+ *       action configured on its side.</li>
  *   <li>{@code callback}: a listener interface of the anticheat's API (e.g. NoCheatPlus' NCPHook), implemented by a
  *       proxy and registered through a static method, for anticheats without a violation event.</li>
  * </ul>
@@ -38,6 +40,7 @@ final class FlagCapture {
 	private final Plugin plugin;
 	private final List<Pattern> logPatterns = new ArrayList<>();
 	private AbstractAppender appender;
+	private boolean commandSource;
 
 	FlagCapture(EventLog log, Plugin plugin) {
 		this.log = log;
@@ -50,6 +53,7 @@ final class FlagCapture {
 			switch (type) {
 				case "log" -> logPatterns.add(Pattern.compile(String.valueOf(source.get("pattern"))));
 				case "event" -> registerEventSource(source);
+				case "command" -> commandSource = true;
 				// Registered one tick later: the anticheat's hook registry is only ready once it is enabled.
 				case "callback" -> Bukkit.getScheduler().runTask(plugin, () -> registerCallbackSource(source));
 				default -> plugin.getLogger().warning("Unknown flag source type " + type);
@@ -97,6 +101,17 @@ final class FlagCapture {
 		} catch (IllegalArgumentException e) {
 			return null;
 		}
+	}
+
+	/**
+	 * {@code command} source: the anticheat runs "acbench flag <player> [check] [vl]" from the console on each flag,
+	 * e.g. as an action of its punishment ladder. For anticheats whose API reports nothing usable. Returns false when no
+	 * command source is configured.
+	 */
+	boolean flagFromCommand(String[] args) {
+		if (!commandSource || args.length < 2) return false;
+		flag("command", args[1], args.length > 2 ? args[2] : null, args.length > 3 ? args[3] : null, String.join(" ", args));
+		return true;
 	}
 
 	private void flag(String source, String player, String check, String vl, String raw) {

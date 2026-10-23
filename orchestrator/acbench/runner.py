@@ -307,12 +307,14 @@ class Runner:
         (out / "anticheat.json").write_text(json.dumps({
             "id": ac.id, "name": ac.name, "default_alerts": ac.default_alerts,
             "default_alert_aliases": ac.default_alert_aliases, "known_issues": ac.known_issues,
+            "grace_ticks": ac.grace_ticks,
         }, indent=1))
         full_plan = build_plan(self.bench, client, self.run_id, trials, {
             "progress": str((out / "progress.json").resolve()),
             "client_log": str((out / "client-events.jsonl").resolve()),
             "modules_dump": str((out / "modules.json").resolve()),
         })
+        full_plan.update(ac.timing)
         (out / "plan.json").write_text(json.dumps(full_plan, indent=1))
         return out
 
@@ -393,6 +395,7 @@ class Runner:
             "client_log": str((out / "client-events.jsonl").resolve()),
             "modules_dump": str((out / "modules.json").resolve()),
         })
+        plan.update(ac.timing)
         plan["server_address"] = f"127.0.0.1:{port}"
         plan_file = out / "plan.json"
         plan_file.write_text(json.dumps(plan, indent=1))

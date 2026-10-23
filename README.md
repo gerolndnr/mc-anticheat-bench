@@ -180,7 +180,9 @@ behält pro Paar die zwei neuesten Schlüssel; der Actions-Cache löscht ihn nac
 
 **Lizenzschlüssel (MLSAC).** MLSAC braucht einen Schlüssel von mlsac.net (es gibt einen kostenlosen Tarif). Lege ihn
 als Repository-Secret `MLSAC_API_KEY` an (`gh secret set MLSAC_API_KEY`). Strafen stellt MLSAC pro Account auf
-mlsac.net ein: Für den Benchmark sollte das Standard-Preset nur alarmieren und nicht kicken oder bannen. Ohne Secret
+mlsac.net ein. Für den Benchmark darf das Preset weder kicken noch bannen, und jede Stufe der Suppression-Leiter führt
+als einzige Aktion den Konsolenbefehl `acbench flag {PLAYER} mlsac {VL}` aus: MLSAC 2.0.9 meldet Flags nicht über seine
+API-Events, der Befehl ist der Weg, auf dem der Benchmark sie sieht. Ohne Secret
 läuft der Benchmark ohne MLSAC.
 
 ### Live-Dashboard
@@ -275,6 +277,10 @@ Lege `config/anticheats/<id>.toml` an. Darin stehen:
   Serverordner, nie in den Ergebnissen.
 - optional `reuse = false`: für AntiCheats mit Cloud-Bewertung, deren Ergebnisse sich ohne neue Jar ändern können. Ihre
   Paare werden in jedem Lauf gemessen statt aus dem Pair-Store übernommen.
+- `type = "command"`: der AntiCheat führt bei jedem Flag den Konsolenbefehl `acbench flag <spieler> [check] [vl]` aus,
+  z. B. als Aktion seiner Strafleiter (MLSAC). Spieler können diesen Befehl nicht nutzen.
+- optional `[timing]` (z. B. `cooldown_ticks`) und `grace_ticks`: eigene Wartezeit nach jedem Trial und eigenes Fenster,
+  in dem Flags noch zum Trial zählen, für AntiCheats, deren Urteile erst nach dem Trial ankommen
 - bei `type = "event"` optional `only_if = "isFlagged"`: Getter, der `true` liefern muss, für Events, die auch
   Ergebnisse ohne Erkennung melden
 - bei `url`-Downloads optional `sha256`: Prüfsumme der Jar

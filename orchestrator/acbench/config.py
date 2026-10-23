@@ -75,6 +75,10 @@ class AntiCheat:
     reusable: bool = True
     # Scenario categories this anticheat checks at all (empty = every category), e.g. ["combat"].
     categories: list[str] = field(default_factory=list)
+    # Per-anticheat overrides: [timing] (e.g. cooldown_ticks, for verdicts that arrive after the trial) and
+    # grace_ticks (how long after a trial its flags still count).
+    timing: dict[str, int] = field(default_factory=dict)
+    grace_ticks: int | None = None
 
     def missing_secrets(self) -> list[str]:
         return [name for name in self.secret_env if not os.environ.get(name)]
@@ -174,6 +178,8 @@ def load_anticheat(path: Path) -> AntiCheat:
         secret_env=[str(n) for n in data.get("secret_env", [])],
         reusable=bool(data.get("reuse", True)),
         categories=[str(c) for c in data.get("categories", [])],
+        timing={k: int(v) for k, v in data.get("timing", {}).items()},
+        grace_ticks=int(data["grace_ticks"]) if "grace_ticks" in data else None,
     )
 
 

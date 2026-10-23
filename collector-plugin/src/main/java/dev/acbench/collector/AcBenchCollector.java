@@ -106,6 +106,12 @@ public final class AcBenchCollector extends JavaPlugin {
 
 	@Override
 	public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+		if (args.length > 0 && args[0].equals("flag")) {
+			// Only the server itself (an anticheat's console command) may report flags; a client could fake them.
+			if (sender instanceof Player) return true;
+			if (!flags.flagFromCommand(args)) log.write("error", Map.of("message", "acbench flag without a command flag source: " + String.join(" ", args)));
+			return true;
+		}
 		if (!(sender instanceof Player player) || args.length == 0) return false;
 		switch (args[0]) {
 			case "setup" -> setup(player, trial(player, args));
