@@ -12,7 +12,7 @@ clients = ["meteor", "liquidbounce", "wurst"]
 anticheats = ["none", "grim", "intave", "spartan", "ncp", "mlsac"]
 
 [server]
-paper_build = "latest"    # or a build number, e.g. 207
+paper_build = 218         # pinned: a new build changes every pair key and re-measures everything; bump on purpose
 memory = "2G"
 port = 25599
 # Keep vanilla's own movement checks off so only the anticheat under test is measured.
